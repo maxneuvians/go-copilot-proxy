@@ -54,7 +54,8 @@ type Message struct {
 }
 
 type SessionResponse struct {
-	Token string `json:"token"`
+	Token     string `json:"token"`
+	ExpiresAt int64  `json:"expires_at,omitempty"`
 }
 
 type Usage struct {

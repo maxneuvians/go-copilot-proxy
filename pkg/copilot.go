@@ -1,22 +1,20 @@
 package pkg
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
-	"io"
 	"net/http"
+	"regexp"
+	"strconv"
 
 	"github.com/rs/zerolog/log"
 )
 
-var Completion_max_tokens = 1000
 var Completion_temperature = 0.3
 var Completion_top_p = 0.9
 var Completion_n = int64(1)
-var Completion_stop = []string{"\n"}
-var Completion_nwo = "github/copilot.vim"
-var Completion_stream = false
-var Completion_language = "python"
+var Completion_stream = true
 
 var editor_client_id = "Iv1.b507a08c87ecfe98"
 var editor_version = "vscode/1.83.1"
@@ -30,8 +28,6 @@ var github_session_endpoint = "https://api.github.com/copilot_internal/v2/token"
 var user_agent = "githubCopilot/1.155.0"
 
 func Authenticate(login LoginResponse) (AuthenticationResponse, error) {
-	log.Debug().Msg("Authenticating...")
-
 	var authResponse AuthenticationResponse
 
 	body := AuthenticationRequest{
@@ -76,33 +72,17 @@ func Authenticate(login LoginResponse) (AuthenticationResponse, error) {
 		log.Error().Msgf("Error decoding response: %s", err)
 		return authResponse, err
 	}
-
-	log.Debug().Msgf("Access token: %s", authResponse.AccessToken)
-
 	return authResponse, nil
 }
 
-func DoCompletion(token string, prompt string) (string, error) {
-	log.Debug().Msg("Doing completion...")
-
-	var completionResponse CompletionResponse
-
+func Chat(token string, messages []Message, stream bool) (string, error) {
 	body := CompletionRequest{
-		Model: "gpt-4",
-		Messages: []Message{
-			{
-				Role:    "system",
-				Content: "You are a helpful assistant.",
-			},
-			{
-				Role:    "user",
-				Content: prompt,
-			},
-		},
+		Model:       "gpt-4",
+		Messages:    messages,
 		Temperature: float64(Completion_temperature),
 		TopP:        float64(Completion_top_p),
 		N:           Completion_n,
-		Stream:      Completion_stream,
+		Stream:      stream,
 	}
 
 	jsonBody, err := json.Marshal(body)
@@ -135,28 +115,56 @@ func DoCompletion(token string, prompt string) (string, error) {
 
 	defer resp.Body.Close()
 
-	bodyBytes, err := io.ReadAll(resp.Body)
+	var completionResponse CompletionResponse
 
-	if err != nil {
-		log.Error().Msgf("Error reading response body: %s", err)
-		return "", err
+	if stream {
+
+		scn := bufio.NewScanner(resp.Body)
+
+		scnBuf := make([]byte, 0, 4096)
+		scn.Buffer(scnBuf, cap(scnBuf))
+
+		resp := ""
+
+		for scn.Scan() {
+			b := scn.Bytes()
+
+			if !bytes.HasPrefix(b, []byte("data:")) {
+				continue
+			}
+
+			b = bytes.TrimSpace(b[5:])
+
+			if bytes.Equal(b, []byte("[DONE]")) {
+				return resp, nil
+			}
+
+			err = json.Unmarshal(b, &completionResponse)
+
+			if err != nil {
+				log.Error().Msgf("Error decoding response: %s", err)
+				return "", err
+			}
+
+			if len(completionResponse.Choices) == 0 {
+				continue
+			}
+
+			resp = resp + completionResponse.Choices[0].Delta.Content
+		}
 	}
 
-	err = json.Unmarshal(bodyBytes, &completionResponse)
+	err = json.NewDecoder(resp.Body).Decode(&completionResponse)
 
 	if err != nil {
 		log.Error().Msgf("Error decoding response: %s", err)
 		return "", err
 	}
 
-	log.Debug().Msgf("Completion: %s", completionResponse.Choices[0].Message.Content)
-
-	return "", nil
+	return completionResponse.Choices[0].Message.Content, nil
 }
 
 func GetSessionToken(accessToken string) (SessionResponse, error) {
-	log.Debug().Msg("Getting session token...")
-
 	var sessionResponse SessionResponse
 
 	req, err := http.NewRequest(http.MethodGet, github_session_endpoint, nil)
@@ -189,14 +197,27 @@ func GetSessionToken(accessToken string) (SessionResponse, error) {
 		return sessionResponse, err
 	}
 
-	log.Debug().Msgf("Session token: %s", sessionResponse.Token)
+	re := regexp.MustCompile(`exp=(\d+)`)
+	matches := re.FindStringSubmatch(sessionResponse.Token)
+
+	if len(matches) < 2 {
+		log.Error().Msgf("Error parsing token: %s", err)
+		return sessionResponse, err
+	}
+
+	exp, err := strconv.ParseInt(matches[1], 10, 64)
+
+	if err != nil {
+		log.Error().Msgf("Error parsing token: %s", err)
+		return sessionResponse, err
+	}
+
+	sessionResponse.ExpiresAt = exp
 
 	return sessionResponse, nil
 }
 
 func Login() (LoginResponse, error) {
-	log.Debug().Msg("Logging in...")
-
 	var loginResponse LoginResponse
 
 	body := LoginRequest{
@@ -236,11 +257,6 @@ func Login() (LoginResponse, error) {
 	if err != nil {
 		return loginResponse, err
 	}
-
-	log.Debug().Msgf("Device code: %s", loginResponse.DeviceCode)
-	log.Debug().Msgf("Interval: %d", loginResponse.Interval)
-	log.Debug().Msgf("User code: %s", loginResponse.UserCode)
-	log.Debug().Msgf("Verification URI: %s", loginResponse.VerificationURI)
 
 	return loginResponse, nil
 }

@@ -20,5 +20,5 @@
 # Go workspace file
 go.work
 
-# GitHub token file
-.github_token
+# GitHub copilot token file
+.github_copilot_token
