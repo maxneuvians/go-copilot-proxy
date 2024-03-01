@@ -75,7 +75,7 @@ func Authenticate(login LoginResponse) (AuthenticationResponse, error) {
 	return authResponse, nil
 }
 
-func Chat(token string, messages []Message, stream bool) (string, error) {
+func Chat(token string, messages []Message, stream bool, callback CompletionResponseHandler) error {
 	body := CompletionRequest{
 		Model:       "gpt-4",
 		Messages:    messages,
@@ -89,7 +89,7 @@ func Chat(token string, messages []Message, stream bool) (string, error) {
 
 	if err != nil {
 		log.Error().Msgf("Error marshalling json: %s", err)
-		return "", err
+		return err
 	}
 
 	req, err := http.NewRequest(http.MethodPost, github_completion_endpoint, bytes.NewBuffer(jsonBody))
@@ -100,7 +100,7 @@ func Chat(token string, messages []Message, stream bool) (string, error) {
 
 	if err != nil {
 		log.Error().Msgf("Error creating request: %s", err)
-		return "", err
+		return err
 	}
 
 	req.Header.Set("authorization", "Bearer "+token)
@@ -110,7 +110,7 @@ func Chat(token string, messages []Message, stream bool) (string, error) {
 
 	if err != nil {
 		log.Error().Msgf("Error sending request: %s", err)
-		return "", err
+		return err
 	}
 
 	defer resp.Body.Close()
@@ -124,8 +124,6 @@ func Chat(token string, messages []Message, stream bool) (string, error) {
 		scnBuf := make([]byte, 0, 4096)
 		scn.Buffer(scnBuf, cap(scnBuf))
 
-		resp := ""
-
 		for scn.Scan() {
 			b := scn.Bytes()
 
@@ -136,21 +134,21 @@ func Chat(token string, messages []Message, stream bool) (string, error) {
 			b = bytes.TrimSpace(b[5:])
 
 			if bytes.Equal(b, []byte("[DONE]")) {
-				return resp, nil
+				return nil
 			}
 
 			err = json.Unmarshal(b, &completionResponse)
 
 			if err != nil {
 				log.Error().Msgf("Error decoding response: %s", err)
-				return "", err
+				return err
 			}
 
 			if len(completionResponse.Choices) == 0 {
 				continue
 			}
 
-			resp = resp + completionResponse.Choices[0].Delta.Content
+			callback(completionResponse)
 		}
 	}
 
@@ -158,10 +156,11 @@ func Chat(token string, messages []Message, stream bool) (string, error) {
 
 	if err != nil {
 		log.Error().Msgf("Error decoding response: %s", err)
-		return "", err
+		return err
 	}
 
-	return completionResponse.Choices[0].Message.Content, nil
+	callback(completionResponse)
+	return nil
 }
 
 func GetSessionToken(accessToken string) (SessionResponse, error) {

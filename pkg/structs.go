@@ -36,6 +36,8 @@ type CompletionResponse struct {
 	Usage   Usage    `json:"usage,omitempty"`
 }
 
+type CompletionResponseHandler func(CompletionResponse) error
+
 type LoginRequest struct {
 	ClientID string `json:"client_id"`
 	Scopes   string `json:"scopes"`

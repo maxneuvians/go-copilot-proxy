@@ -91,7 +91,12 @@ var startCmd = &cobra.Command{
 				return err
 			}
 
-			resp, err := pkg.Chat(session_token, payload.Messages, false)
+			resp := ""
+
+			err := pkg.Chat(session_token, payload.Messages, false, func(completionResponse pkg.CompletionResponse) error {
+				resp = completionResponse.Choices[0].Message.Content
+				return nil
+			})
 
 			if err != nil {
 				log.Error().Msgf("Error sending message: %s", err)
