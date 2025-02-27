@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 
@@ -76,8 +77,13 @@ func Authenticate(login LoginResponse) (AuthenticationResponse, error) {
 }
 
 func Chat(token string, messages []Message, stream bool, callback CompletionResponseHandler) error {
+	model := os.Getenv("MODEL")
+	if model == "" {
+		model = "claude-3.7-sonnet"
+	}
+
 	body := CompletionRequest{
-		Model:       "gpt-4",
+		Model:       model,
 		Messages:    messages,
 		Temperature: float64(Completion_temperature),
 		TopP:        float64(Completion_top_p),
