@@ -5,17 +5,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
-	"os"
 	"regexp"
 	"strconv"
 
 	"github.com/rs/zerolog/log"
 )
-
-var Completion_temperature = 0.3
-var Completion_top_p = 0.9
-var Completion_n = int64(1)
-var Completion_stream = true
 
 var editor_client_id = "Iv1.b507a08c87ecfe98"
 var editor_version = "vscode/1.83.1"
@@ -76,18 +70,13 @@ func Authenticate(login LoginResponse) (AuthenticationResponse, error) {
 	return authResponse, nil
 }
 
-func Chat(token string, messages []Message, stream bool, callback CompletionResponseHandler) error {
-	model := os.Getenv("MODEL")
-	if model == "" {
-		model = "claude-3.7-sonnet"
-	}
-
+func Chat(token string, messages []Message, model string, temperature float64, top_p float64, completion_n int64, stream bool, callback CompletionResponseHandler) error {
 	body := CompletionRequest{
 		Model:       model,
 		Messages:    messages,
-		Temperature: float64(Completion_temperature),
-		TopP:        float64(Completion_top_p),
-		N:           Completion_n,
+		Temperature: temperature,
+		TopP:        top_p,
+		N:           completion_n,
 		Stream:      stream,
 	}
 

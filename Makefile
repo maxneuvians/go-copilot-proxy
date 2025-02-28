@@ -1,7 +1,7 @@
 curl:
 	@curl --location 'http://127.0.0.1:3000/chat' \
 		--header 'Content-Type: application/json' \
-		--data '{"messages": [{"role": "system", "content": "You are a comedian. Return valid JSON"},{"role": "user", "content": "Can you generate a joke about the canadian digital service?"}]}' \
+		--data '{"model": "o3-mini", "messages": [{"role": "system", "content": "You are a comedian. Return valid JSON"},{"role": "user", "content": "Can you generate a joke about the canadian digital service?"}]}' \
 		| jq ". | fromjson"
 
 login:

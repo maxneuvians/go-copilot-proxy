@@ -14,8 +14,18 @@ import (
 
 var session_token string
 
+var Model = "claude-3.7-sonnet"
+var Completion_temperature = 0.3
+var Completion_top_p = 0.9
+var Completion_n = int64(1)
+var Completion_stream = true
+
 type Payload struct {
-	Messages []pkg.Message `json:"messages"`
+	Completion_N *int64        `json:"n,omitempty"`
+	Messages     []pkg.Message `json:"messages"`
+	Model        *string       `json:"model,omitempty"`
+	Temperature  *float64      `json:"temperature,omitempty"`
+	TopP         *float64      `json:"top_p,omitempty"`
 }
 
 func init() {
@@ -91,9 +101,29 @@ var startCmd = &cobra.Command{
 				return err
 			}
 
+			n := Completion_n
+			if payload.Completion_N != nil {
+				n = *payload.Completion_N
+			}
+
+			model := Model
+			if payload.Model != nil {
+				model = *payload.Model
+			}
+
+			temperature := Completion_temperature
+			if payload.Temperature != nil {
+				temperature = *payload.Temperature
+			}
+
+			topP := Completion_top_p
+			if payload.TopP != nil {
+				topP = *payload.TopP
+			}
+
 			resp := ""
 
-			err := pkg.Chat(session_token, payload.Messages, false, func(completionResponse pkg.CompletionResponse) error {
+			err := pkg.Chat(session_token, payload.Messages, model, temperature, topP, n, false, func(completionResponse pkg.CompletionResponse) error {
 				resp = completionResponse.Choices[0].Message.Content
 				return nil
 			})
