@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/maxneuvians/go-copilot-proxy/pkg"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -39,6 +40,13 @@ var startCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		app := fiber.New()
+		 // Add CORS middleware
+		 app.Use(cors.New(cors.Config{
+            AllowOrigins:     "http://localhost:5173",
+            AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
+            AllowHeaders:     "Accept,Authorization,Content-Type,Content-Length,Accept-Encoding",
+            AllowCredentials: true,
+        }))
 
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
