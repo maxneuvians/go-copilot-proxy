@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -61,6 +62,36 @@ func Authenticate(login LoginResponse) (AuthenticationResponse, error) {
 
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		var errorResponse struct {
+			Error struct {
+				Message string `json:"message"`
+				Type    string `json:"type"`
+				Code    string `json:"code"`
+			} `json:"error"`
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&errorResponse); err != nil {
+			log.Error().
+				Err(err).
+				Int("status_code", resp.StatusCode).
+				Msg("Failed to decode error response")
+			return authResponse, fmt.Errorf("API request failed with status: %d", resp.StatusCode)
+		}
+
+		log.Error().
+			Int("status_code", resp.StatusCode).
+			Str("error_type", errorResponse.Error.Type).
+			Str("error_code", errorResponse.Error.Code).
+			Str("error_message", errorResponse.Error.Message).
+			Msg("API request failed")
+
+		return authResponse, fmt.Errorf("API error: %s (code: %s, type: %s)",
+			errorResponse.Error.Message,
+			errorResponse.Error.Code,
+			errorResponse.Error.Type)
+	}
+
 	err = json.NewDecoder(resp.Body).Decode(&authResponse)
 
 	if err != nil {
@@ -109,6 +140,36 @@ func Chat(token string, messages []Message, model string, temperature float64, t
 	}
 
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var errorResponse struct {
+			Error struct {
+				Message string `json:"message"`
+				Type    string `json:"type"`
+				Code    string `json:"code"`
+			} `json:"error"`
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&errorResponse); err != nil {
+			log.Error().
+				Err(err).
+				Int("status_code", resp.StatusCode).
+				Msg("Failed to decode error response")
+			return fmt.Errorf("API request failed with status: %d", resp.StatusCode)
+		}
+
+		log.Error().
+			Int("status_code", resp.StatusCode).
+			Str("error_type", errorResponse.Error.Type).
+			Str("error_code", errorResponse.Error.Code).
+			Str("error_message", errorResponse.Error.Message).
+			Msg("API request failed")
+
+		return fmt.Errorf("API error: %s (code: %s, type: %s)",
+			errorResponse.Error.Message,
+			errorResponse.Error.Code,
+			errorResponse.Error.Type)
+	}
 
 	var completionResponse CompletionResponse
 
@@ -184,6 +245,36 @@ func GetSessionToken(accessToken string) (SessionResponse, error) {
 
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		var errorResponse struct {
+			Error struct {
+				Message string `json:"message"`
+				Type    string `json:"type"`
+				Code    string `json:"code"`
+			} `json:"error"`
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&errorResponse); err != nil {
+			log.Error().
+				Err(err).
+				Int("status_code", resp.StatusCode).
+				Msg("Failed to decode error response")
+			return sessionResponse, fmt.Errorf("API request failed with status: %d", resp.StatusCode)
+		}
+
+		log.Error().
+			Int("status_code", resp.StatusCode).
+			Str("error_type", errorResponse.Error.Type).
+			Str("error_code", errorResponse.Error.Code).
+			Str("error_message", errorResponse.Error.Message).
+			Msg("API request failed")
+
+		return sessionResponse, fmt.Errorf("API error: %s (code: %s, type: %s)",
+			errorResponse.Error.Message,
+			errorResponse.Error.Code,
+			errorResponse.Error.Type)
+	}
+
 	err = json.NewDecoder(resp.Body).Decode(&sessionResponse)
 
 	if err != nil {
@@ -245,6 +336,36 @@ func Login() (LoginResponse, error) {
 	}
 
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var errorResponse struct {
+			Error struct {
+				Message string `json:"message"`
+				Type    string `json:"type"`
+				Code    string `json:"code"`
+			} `json:"error"`
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&errorResponse); err != nil {
+			log.Error().
+				Err(err).
+				Int("status_code", resp.StatusCode).
+				Msg("Failed to decode error response")
+			return loginResponse, fmt.Errorf("API request failed with status: %d", resp.StatusCode)
+		}
+
+		log.Error().
+			Int("status_code", resp.StatusCode).
+			Str("error_type", errorResponse.Error.Type).
+			Str("error_code", errorResponse.Error.Code).
+			Str("error_message", errorResponse.Error.Message).
+			Msg("API request failed")
+
+		return loginResponse, fmt.Errorf("API error: %s (code: %s, type: %s)",
+			errorResponse.Error.Message,
+			errorResponse.Error.Code,
+			errorResponse.Error.Type)
+	}
 
 	err = json.NewDecoder(resp.Body).Decode(&loginResponse)
 

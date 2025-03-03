@@ -1,0 +1,208 @@
+/* Existing message styles */
+.userMessage {
+    background-color: light-dark(var(--mantine-color-blue-0), var(--mantine-color-gray-7));
+    color: light-dark(var(--mantine-color-blue-9), var(--mantine-color-gray-0));
+    border-radius: 8px;
+    padding: 12px;
+    margin-left: auto;
+    max-width: 80%;
+    align-self: flex-end;
+  }
+  
+  .aiMessage {
+    border-radius: 8px;
+    margin-right: auto;
+    max-width: 80%;
+    align-self: flex-start;
+    margin: 1rem 0;
+  }
+  
+  .messageContent {
+    flex: 1;
+
+  }
+  
+  
+  .messagesContainer {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    height: calc(100vh - 80px); /* Adjust for input height */
+  }
+  
+  .chatHeader {
+    padding:1rem 0;
+    height: 75px;
+  }
+  
+  .scrollArea {
+    flex: 1;
+    margin-bottom: 1rem;
+  }
+  
+ .chatBox {
+  height: 150px;
+
+ }
+
+
+.matrixContainer {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2; /* Ensure it stays above the rain effect */
+  }
+  .matrixText {
+    color: #0f0;
+    font-size: 2rem;
+    font-family: monospace;
+    position: relative;
+    text-shadow: 0 0 10px #0f0, 0 0 20px #0f0, 0 0 30px #0f0;
+    z-index: 2;
+    animation: textTransform 4s forwards; /* Animation for the main text */
+    --final-text-color: var(--mantine-color-black);
+    --final-text-color-dark: var(--mantine-color-white);
+  }
+
+  /* Add a dark mode override for the final color */
+  [data-mantine-color-scheme="dark"] .matrixText {
+    --final-text-color: var(--final-text-color-dark);
+  }
+  
+  .matrixText::before {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    animation: glitch 1s 2 forwards; /* Run 2 times then stop */
+    clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%);
+    transform: translate(-2px, -2px);
+    color: #0f0;
+    text-shadow: 0 0 5px #0f0, 0 0 15px #0f0;
+  }
+  
+  /* Glitch effect for the ::before element */
+  @keyframes glitch {
+    0%, 90% {
+      clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%);
+      transform: translate(0);
+      opacity: 1;
+    }
+    33% {
+      clip-path: polygon(0 0, 100% 0, 100% 15%, 0 15%);
+      transform: translate(-5px, -5px);
+      opacity: 1;
+    }
+    66% {
+      clip-path: polygon(0 85%, 100% 85%, 100% 100%, 0 100%);
+      transform: translate(5px, 5px);
+      opacity: 1;
+    }
+    100% {
+      opacity: 0; /* Hide the glitch effect at the end */
+    }
+  }
+  
+  /* Animation for the main text color change */
+  @keyframes textTransform {
+    0%, 85% {
+      color: #0f0;
+      text-shadow: 0 0 10px #0f0, 0 0 20px #0f0, 0 0 30px #0f0;
+    }
+    100% {
+      color: var(--final-text-color);
+      text-shadow: none;
+    }
+  }
+  
+
+  /* markdown styles */
+  .markdownContent {
+    color: light-dark(var(--mantine-color-gray-7), #ffffff);
+  }
+  .markdownContent > *:first-child:not(p) {
+    margin-top: 0;
+    padding-top: 0;
+  }
+  
+  .markdownContent > p:first-child {
+    margin-top: 0;
+  }
+  
+  .markdownContent > h1:first-child,
+  .markdownContent > h2:first-child,
+  .markdownContent > h3:first-child,
+  .markdownContent > h4:first-child,
+  .markdownContent > h5:first-child,
+  .markdownContent > h6:first-child {
+    margin-top: 0;
+  }
+  
+  .markdownContent > ul:first-child,
+  .markdownContent > ol:first-child {
+    margin-top: 0;
+  }
+  .markdownContent > * {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+.markdownContent {
+  font-family: var(--mantine-font-family);
+  margin: 0;
+}
+
+.markdownContent pre {
+  background-color: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-3));
+  border-radius: 6px;
+  padding: 16px;
+  overflow: auto;
+}
+
+.markdownContent code {
+  background-color:light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-3));
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  font-size: 85%;
+}
+
+.markdownContent pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+.markdownContent img {
+  max-width: 100%;
+}
+
+.markdownContent table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+
+.markdownContent th, .markdownContent td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.markdownContent th {
+  background-color: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-3));
+}
+
+.markdownContent blockquote {
+  border-left: 4px solid #e0e0e0;
+  margin-left: 0;
+  padding-left: 1em;
+  color: light-dark(var(--mantine-color-gray-6), var(--mantine-color-dark-1));
+}
+
+.markdownContent ul, .markdownContent ol {
+  padding-left: 2em;
+}

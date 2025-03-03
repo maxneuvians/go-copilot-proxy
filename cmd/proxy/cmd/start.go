@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/maxneuvians/go-copilot-proxy/pkg"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -39,6 +41,13 @@ var startCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		app := fiber.New()
+		 // Add CORS middleware
+		 app.Use(cors.New(cors.Config{
+            AllowOrigins:     "http://localhost:5173",
+            AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
+            AllowHeaders:     "Accept,Authorization,Content-Type,Content-Length,Accept-Encoding",
+            AllowCredentials: true,
+        }))
 
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
@@ -97,9 +106,30 @@ var startCmd = &cobra.Command{
 		app.Post("/chat", func(c *fiber.Ctx) error {
 			var payload Payload
 
+			// Log incoming request
+			log.Debug().
+				Str("path", "/chat").
+				Str("method", "POST").
+				Str("remote_ip", c.IP()).
+				Msg("Incoming chat request")
+
 			if err := c.BodyParser(&payload); err != nil {
-				return err
+				log.Error().
+					Err(err).
+					Str("path", "/chat").
+					Interface("payload", payload).
+					Msg("Failed to parse request body")
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+					"error": "Invalid request payload",
+				})
 			}
+
+			// Log parsed payload details
+			log.Debug().
+				Int("message_count", len(payload.Messages)).
+				Str("model", *payload.Model).
+				Interface("messages", payload.Messages).
+				Msg("Processing chat request")
 
 			n := Completion_n
 			if payload.Completion_N != nil {
@@ -122,18 +152,46 @@ var startCmd = &cobra.Command{
 			}
 
 			resp := ""
+			startTime := time.Now()
 
 			err := pkg.Chat(session_token, payload.Messages, model, temperature, topP, n, false, func(completionResponse pkg.CompletionResponse) error {
+				// Add validation and logging
+				if len(completionResponse.Choices) == 0 {
+					log.Error().
+						Interface("response", completionResponse).
+						Msg("Empty choices array in completion response")
+					return fmt.Errorf("no choices in completion response")
+				}
+				
 				resp = completionResponse.Choices[0].Message.Content
 				return nil
 			})
 
 			if err != nil {
-				log.Error().Msgf("Error sending message: %s", err)
+				log.Error().
+					Err(err).
+					Str("model", model).
+					Float64("temperature", temperature).
+					Float64("top_p", topP).
+					Int64("n", n).
+					Interface("messages", payload.Messages).
+					Msg("Failed to get chat completion")
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+					"error": fmt.Sprintf("Failed to process chat request: %v", err),
+				})
 			}
 
+			// Log successful response
+			responseJSON := fiber.Map{"content": resp}
+			log.Debug().
+				Str("model", model).
+				Int("response_length", len(resp)).
+				Float64("duration_ms", float64(time.Since(startTime).Milliseconds())).
+				Interface("response", responseJSON).  // Changed from RawJSON to Interface
+				Msg("Chat request completed successfully")
+
 			c.Set("Content-Type", "application/json")
-			return c.JSON(resp)
+			return c.JSON(responseJSON)
 		})
 
 		app.Listen(":3000")
