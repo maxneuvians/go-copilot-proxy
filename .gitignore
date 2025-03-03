@@ -22,3 +22,7 @@ go.work
 
 # GitHub copilot token file
 .github_copilot_token
+
+node_modules/
+**/node_modules/
+**/node_modules
