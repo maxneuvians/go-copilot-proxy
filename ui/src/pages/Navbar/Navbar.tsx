@@ -4,7 +4,6 @@ import {
   IconBrandLine,
   IconHome2,
   IconInfoCircle,
-  IconMoonFilled,
   IconSettings,
 } from '@tabler/icons-react';
 import { Center, Stack, Tooltip, UnstyledButton, Image, ActionIcon } from '@mantine/core';
