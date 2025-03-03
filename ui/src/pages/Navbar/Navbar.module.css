@@ -1,0 +1,45 @@
+.appShell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.navbar {
+    width: 80px;
+    min-height: 100vh;
+    padding: var(--mantine-spacing-md);
+    display: flex;
+    flex-direction: column;
+    /* border-right: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4)); */
+    background-color:  light-dark(var(--mantine-color-gray-1), var(--mantine-color-gray-9));
+    position: fixed;
+  }
+  .main {
+    flex: 1;
+    background-color: light-dark(var(--mantine-color-white), var(--mantine-color-dark-5));
+  }
+  .navbarMain {
+    flex: 1;
+    margin-top: 50px;
+  }
+  
+  .link {
+    width: 50px;
+    height: 50px;
+    border-radius: var(--mantine-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-0));
+  
+    &:hover {
+      background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-5));
+    }
+  
+    &[data-active] {
+      &,
+      &:hover {
+        background-color: var(--mantine-color-blue-light);
+        color: var(--mantine-color-blue-light-color);
+      }
+    }
+  }
