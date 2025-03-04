@@ -1,4 +1,4 @@
-# CDS/AI Frontend
+# AI Proxy Frontend
 
 A modern React application that provides a chat interface for interacting with GitHub Copilot. Built by the Canadian Digital Service as a proof of concept for AI integration.
 

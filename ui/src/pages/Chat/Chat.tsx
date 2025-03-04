@@ -84,7 +84,7 @@ export function ChatContent() {
         try {
             // Call API with the updated conversation history
             console.log('sending message:', updatedHistory);
-            
+
             const response = await chatService.sendMessage(updatedHistory);
             // Create AI message from response
             const aiMessage: Message = {
@@ -142,7 +142,7 @@ export function ChatContent() {
         >
             <Box className={classes.chatHeader} style={{ flexShrink: 0 }}>
                 <Container size="lg">
-                    <div className={classes.matrixText} data-text="MATRIX">CDS/AI</div>
+                    <div className={classes.matrixText} data-text="MATRIX">AI Proxy</div>
                 </Container>
             </Box>
 
@@ -204,7 +204,7 @@ export function ChatContent() {
                     <TextInput
                         size="xl"
                         radius="xl"
-                        placeholder="Ask CDS/AI..."
+                        placeholder="Ask AI Proxy..."
                         className={classes.chatInput}
                         value={input}
                         onChange={(e) => setInput(e.currentTarget.value)}

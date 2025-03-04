@@ -6,7 +6,7 @@ import {
   IconInfoCircle,
   IconSettings,
 } from '@tabler/icons-react';
-import { Center, Stack, Tooltip, UnstyledButton, Image, ActionIcon } from '@mantine/core';
+import { Center, Stack, Tooltip, UnstyledButton, ActionIcon } from '@mantine/core';
 
 import classes from './Navbar.module.css';
 import DarkModeToggle from '../../components/DarkModeToggle';
@@ -56,7 +56,6 @@ export default function Chat() {
       <SettingsDrawer opened={opened} onClose={close} />
       <nav className={classes.navbar}>
         <Center>
-          <Image src="/images/cds.png" alt="CDS logo" width={50} height={50} />
         </Center>
 
         <div className={classes.navbarMain}>
