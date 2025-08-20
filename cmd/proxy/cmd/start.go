@@ -185,6 +185,19 @@ var startCmd = &cobra.Command{
 			}
 
 			// Create OpenAI-compatible response
+			usage := completionResp.Usage
+			// If usage is not available from the original response, create default values
+			if usage.TotalTokens == 0 && usage.PromptTokens == 0 && usage.CompletionTokens == 0 {
+				// Estimate token counts (rough approximation)
+				promptTokens := int64(len(fmt.Sprintf("%v", payload.Messages)) / 4)
+				completionTokens := int64(len(resp) / 4)
+				usage = pkg.Usage{
+					PromptTokens:     promptTokens,
+					CompletionTokens: completionTokens,
+					TotalTokens:      promptTokens + completionTokens,
+				}
+			}
+
 			openAIResponse := pkg.CompletionResponse{
 				ID:      "chatcmpl-" + uuid.New().String(),
 				Object:  "chat.completion",
@@ -200,7 +213,7 @@ var startCmd = &cobra.Command{
 						FinishReason: "stop",
 					},
 				},
-				Usage: completionResp.Usage, // Use usage from the original response if available
+				Usage: usage,
 			}
 
 			// Log successful response

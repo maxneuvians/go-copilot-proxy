@@ -26,3 +26,7 @@ go.work
 node_modules/
 **/node_modules/
 **/node_modules
+
+# UI build artifacts
+ui/dist/
+proxy
