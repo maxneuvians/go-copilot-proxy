@@ -46,7 +46,7 @@ func createTestApp() *fiber.App {
 
 		// Mock response (simulate successful completion)
 		resp := "Hello! How can I help you today?"
-		
+
 		// Create usage estimation
 		promptTokens := int64(len(fmt.Sprintf("%v", payload.Messages)) / 4)
 		completionTokens := int64(len(resp) / 4)

@@ -11,20 +11,20 @@ func TestAuthenticationRequestSerialization(t *testing.T) {
 		DeviceCode: "test-device-code",
 		GrantType:  "test-grant-type",
 	}
-	
+
 	// Test JSON marshaling
 	data, err := json.Marshal(req)
 	if err != nil {
 		t.Fatalf("Failed to marshal AuthenticationRequest: %v", err)
 	}
-	
+
 	// Test JSON unmarshaling
 	var unmarshaled AuthenticationRequest
 	err = json.Unmarshal(data, &unmarshaled)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal AuthenticationRequest: %v", err)
 	}
-	
+
 	// Verify fields
 	if unmarshaled.ClientID != req.ClientID {
 		t.Errorf("ClientID mismatch: expected %s, got %s", req.ClientID, unmarshaled.ClientID)
@@ -44,20 +44,20 @@ func TestAuthenticationResponseSerialization(t *testing.T) {
 		TokenType:   "Bearer",
 		Scope:       "read:user",
 	}
-	
+
 	// Test JSON marshaling
 	data, err := json.Marshal(resp)
 	if err != nil {
 		t.Fatalf("Failed to marshal AuthenticationResponse: %v", err)
 	}
-	
+
 	// Test JSON unmarshaling
 	var unmarshaled AuthenticationResponse
 	err = json.Unmarshal(data, &unmarshaled)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal AuthenticationResponse: %v", err)
 	}
-	
+
 	// Verify fields
 	if unmarshaled.AccessToken != resp.AccessToken {
 		t.Errorf("AccessToken mismatch: expected %s, got %s", resp.AccessToken, unmarshaled.AccessToken)
@@ -96,20 +96,20 @@ func TestCompletionResponseOpenAICompatibility(t *testing.T) {
 			TotalTokens:      23,
 		},
 	}
-	
+
 	// Test JSON marshaling
 	data, err := json.Marshal(resp)
 	if err != nil {
 		t.Fatalf("Failed to marshal CompletionResponse: %v", err)
 	}
-	
+
 	// Verify the JSON structure matches OpenAI format
 	var jsonObj map[string]interface{}
 	err = json.Unmarshal(data, &jsonObj)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal to map: %v", err)
 	}
-	
+
 	// Check required OpenAI fields
 	requiredFields := []string{"id", "object", "created", "model", "choices", "usage"}
 	for _, field := range requiredFields {
@@ -117,7 +117,7 @@ func TestCompletionResponseOpenAICompatibility(t *testing.T) {
 			t.Errorf("Missing required OpenAI field: %s", field)
 		}
 	}
-	
+
 	// Verify specific values
 	if jsonObj["id"] != "chatcmpl-123" {
 		t.Errorf("ID mismatch: expected chatcmpl-123, got %v", jsonObj["id"])
@@ -128,7 +128,7 @@ func TestCompletionResponseOpenAICompatibility(t *testing.T) {
 	if jsonObj["model"] != "claude-3.7-sonnet" {
 		t.Errorf("Model mismatch: expected claude-3.7-sonnet, got %v", jsonObj["model"])
 	}
-	
+
 	// Verify choices structure
 	choices, ok := jsonObj["choices"].([]interface{})
 	if !ok {
@@ -137,12 +137,12 @@ func TestCompletionResponseOpenAICompatibility(t *testing.T) {
 	if len(choices) != 1 {
 		t.Errorf("Expected 1 choice, got %d", len(choices))
 	}
-	
+
 	choice, ok := choices[0].(map[string]interface{})
 	if !ok {
 		t.Fatalf("Choice is not an object")
 	}
-	
+
 	// Check choice fields - index might be omitted if 0 due to omitempty tag
 	if index, exists := choice["index"]; exists && index != float64(0) {
 		t.Errorf("Choice index mismatch: expected 0, got %v", choice["index"])
@@ -150,7 +150,7 @@ func TestCompletionResponseOpenAICompatibility(t *testing.T) {
 	if choice["finish_reason"] != "stop" {
 		t.Errorf("Finish reason mismatch: expected stop, got %v", choice["finish_reason"])
 	}
-	
+
 	message, ok := choice["message"].(map[string]interface{})
 	if !ok {
 		t.Fatalf("Message is not an object")
@@ -161,7 +161,7 @@ func TestCompletionResponseOpenAICompatibility(t *testing.T) {
 	if message["content"] != "Hello! How can I help you?" {
 		t.Errorf("Message content mismatch: expected 'Hello! How can I help you?', got %v", message["content"])
 	}
-	
+
 	// Verify usage structure
 	usage, ok := jsonObj["usage"].(map[string]interface{})
 	if !ok {
@@ -183,20 +183,20 @@ func TestMessageSerialization(t *testing.T) {
 		Role:    "user",
 		Content: "Hello, how are you?",
 	}
-	
+
 	// Test JSON marshaling
 	data, err := json.Marshal(msg)
 	if err != nil {
 		t.Fatalf("Failed to marshal Message: %v", err)
 	}
-	
+
 	// Test JSON unmarshaling
 	var unmarshaled Message
 	err = json.Unmarshal(data, &unmarshaled)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal Message: %v", err)
 	}
-	
+
 	// Verify fields
 	if unmarshaled.Role != msg.Role {
 		t.Errorf("Role mismatch: expected %s, got %s", msg.Role, unmarshaled.Role)
@@ -212,20 +212,20 @@ func TestUsageSerialization(t *testing.T) {
 		PromptTokens:     100,
 		TotalTokens:      150,
 	}
-	
+
 	// Test JSON marshaling
 	data, err := json.Marshal(usage)
 	if err != nil {
 		t.Fatalf("Failed to marshal Usage: %v", err)
 	}
-	
+
 	// Test JSON unmarshaling
 	var unmarshaled Usage
 	err = json.Unmarshal(data, &unmarshaled)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal Usage: %v", err)
 	}
-	
+
 	// Verify fields
 	if unmarshaled.CompletionTokens != usage.CompletionTokens {
 		t.Errorf("CompletionTokens mismatch: expected %d, got %d", usage.CompletionTokens, unmarshaled.CompletionTokens)
@@ -247,20 +247,20 @@ func TestChoiceSerialization(t *testing.T) {
 			Content: "Test response",
 		},
 	}
-	
+
 	// Test JSON marshaling
 	data, err := json.Marshal(choice)
 	if err != nil {
 		t.Fatalf("Failed to marshal Choice: %v", err)
 	}
-	
+
 	// Test JSON unmarshaling
 	var unmarshaled Choice
 	err = json.Unmarshal(data, &unmarshaled)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal Choice: %v", err)
 	}
-	
+
 	// Verify fields
 	if unmarshaled.FinishReason != choice.FinishReason {
 		t.Errorf("FinishReason mismatch: expected %s, got %s", choice.FinishReason, unmarshaled.FinishReason)
@@ -288,20 +288,20 @@ func TestCompletionRequestSerialization(t *testing.T) {
 		TopP:        0.9,
 		N:           1,
 	}
-	
+
 	// Test JSON marshaling
 	data, err := json.Marshal(req)
 	if err != nil {
 		t.Fatalf("Failed to marshal CompletionRequest: %v", err)
 	}
-	
+
 	// Test JSON unmarshaling
 	var unmarshaled CompletionRequest
 	err = json.Unmarshal(data, &unmarshaled)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal CompletionRequest: %v", err)
 	}
-	
+
 	// Verify fields
 	if unmarshaled.Model != req.Model {
 		t.Errorf("Model mismatch: expected %s, got %s", req.Model, unmarshaled.Model)
@@ -328,20 +328,20 @@ func TestLoginRequestSerialization(t *testing.T) {
 		ClientID: "test-client-id",
 		Scopes:   "read:user",
 	}
-	
+
 	// Test JSON marshaling
 	data, err := json.Marshal(req)
 	if err != nil {
 		t.Fatalf("Failed to marshal LoginRequest: %v", err)
 	}
-	
+
 	// Test JSON unmarshaling
 	var unmarshaled LoginRequest
 	err = json.Unmarshal(data, &unmarshaled)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal LoginRequest: %v", err)
 	}
-	
+
 	// Verify fields
 	if unmarshaled.ClientID != req.ClientID {
 		t.Errorf("ClientID mismatch: expected %s, got %s", req.ClientID, unmarshaled.ClientID)
@@ -358,20 +358,20 @@ func TestLoginResponseSerialization(t *testing.T) {
 		UserCode:        "TEST-123",
 		VerificationURI: "https://github.com/login/device",
 	}
-	
+
 	// Test JSON marshaling
 	data, err := json.Marshal(resp)
 	if err != nil {
 		t.Fatalf("Failed to marshal LoginResponse: %v", err)
 	}
-	
+
 	// Test JSON unmarshaling
 	var unmarshaled LoginResponse
 	err = json.Unmarshal(data, &unmarshaled)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal LoginResponse: %v", err)
 	}
-	
+
 	// Verify fields
 	if unmarshaled.DeviceCode != resp.DeviceCode {
 		t.Errorf("DeviceCode mismatch: expected %s, got %s", resp.DeviceCode, unmarshaled.DeviceCode)
@@ -392,20 +392,20 @@ func TestSessionResponseSerialization(t *testing.T) {
 		Token:     "test-session-token",
 		ExpiresAt: 1234567890,
 	}
-	
+
 	// Test JSON marshaling
 	data, err := json.Marshal(resp)
 	if err != nil {
 		t.Fatalf("Failed to marshal SessionResponse: %v", err)
 	}
-	
+
 	// Test JSON unmarshaling
 	var unmarshaled SessionResponse
 	err = json.Unmarshal(data, &unmarshaled)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal SessionResponse: %v", err)
 	}
-	
+
 	// Verify fields
 	if unmarshaled.Token != resp.Token {
 		t.Errorf("Token mismatch: expected %s, got %s", resp.Token, unmarshaled.Token)

@@ -98,6 +98,11 @@ issues:
     - text: "declaration of \"(err|ctx)\""
       linters:
         - govet
+    
+    # Exclude typecheck false positives with fiber imports
+    - text: "undefined: fiber"
+      linters:
+        - typecheck
   
   max-issues-per-linter: 0
   max-same-issues: 0

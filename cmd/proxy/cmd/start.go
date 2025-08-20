@@ -42,13 +42,13 @@ var startCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		app := fiber.New()
-		 // Add CORS middleware
-		 app.Use(cors.New(cors.Config{
-            AllowOrigins:     "http://localhost:5173",
-            AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
-            AllowHeaders:     "Accept,Authorization,Content-Type,Content-Length,Accept-Encoding",
-            AllowCredentials: true,
-        }))
+		// Add CORS middleware
+		app.Use(cors.New(cors.Config{
+			AllowOrigins:     "http://localhost:5173",
+			AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
+			AllowHeaders:     "Accept,Authorization,Content-Type,Content-Length,Accept-Encoding",
+			AllowCredentials: true,
+		}))
 
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
@@ -164,7 +164,7 @@ var startCmd = &cobra.Command{
 						Msg("Empty choices array in completion response")
 					return fmt.Errorf("no choices in completion response")
 				}
-				
+
 				resp = completionResponse.Choices[0].Message.Content
 				completionResp = completionResponse
 				return nil

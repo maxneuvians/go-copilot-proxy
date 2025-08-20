@@ -15,27 +15,27 @@ func TestLogin(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Errorf("Expected POST request, got %s", r.Method)
 		}
-		
+
 		expectedHeaders := map[string]string{
 			"accept":                "application/json",
 			"content-type":          "application/json",
 			"editor-version":        "vscode/1.83.1",
 			"editor-plugin-version": "copilot-chat/0.8.0",
-			"user-agent":           "githubCopilot/1.155.0",
+			"user-agent":            "githubCopilot/1.155.0",
 		}
-		
+
 		for header, expectedValue := range expectedHeaders {
 			if r.Header.Get(header) != expectedValue {
 				t.Errorf("Expected header %s: %s, got %s", header, expectedValue, r.Header.Get(header))
 			}
 		}
-		
+
 		// Parse request body
 		var req LoginRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			t.Errorf("Failed to decode request body: %v", err)
 		}
-		
+
 		// Verify request body
 		if req.ClientID != "Iv1.b507a08c87ecfe98" {
 			t.Errorf("Expected client_id: Iv1.b507a08c87ecfe98, got %s", req.ClientID)
@@ -43,7 +43,7 @@ func TestLogin(t *testing.T) {
 		if req.Scopes != "read:user" {
 			t.Errorf("Expected scopes: read:user, got %s", req.Scopes)
 		}
-		
+
 		// Return mock response
 		response := LoginResponse{
 			DeviceCode:      "test-device-code",
@@ -51,23 +51,23 @@ func TestLogin(t *testing.T) {
 			UserCode:        "TEST-CODE",
 			VerificationURI: "https://github.com/login/device",
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
-	
+
 	// Override the login endpoint for testing
 	originalEndpoint := github_login_endpoint
 	github_login_endpoint = server.URL
 	defer func() { github_login_endpoint = originalEndpoint }()
-	
+
 	// Test the Login function
 	loginResp, err := Login()
 	if err != nil {
 		t.Fatalf("Login failed: %v", err)
 	}
-	
+
 	// Verify response
 	if loginResp.DeviceCode != "test-device-code" {
 		t.Errorf("Expected device_code: test-device-code, got %s", loginResp.DeviceCode)
@@ -94,18 +94,18 @@ func TestLoginError(t *testing.T) {
 		json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
-	
+
 	// Override the login endpoint for testing
 	originalEndpoint := github_login_endpoint
 	github_login_endpoint = server.URL
 	defer func() { github_login_endpoint = originalEndpoint }()
-	
+
 	// Test the Login function with error
 	_, err := Login()
 	if err == nil {
 		t.Fatal("Expected Login to return an error, but it succeeded")
 	}
-	
+
 	expectedError := "API error: Invalid client ID (code: bad_client_id, type: invalid_request)"
 	if err.Error() != expectedError {
 		t.Errorf("Expected error: %s, got %s", expectedError, err.Error())
@@ -119,12 +119,12 @@ func TestAuthenticate(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Errorf("Expected POST request, got %s", r.Method)
 		}
-		
+
 		var req AuthenticationRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			t.Errorf("Failed to decode request body: %v", err)
 		}
-		
+
 		// Verify request structure
 		if req.ClientID != "Iv1.b507a08c87ecfe98" {
 			t.Errorf("Expected client_id: Iv1.b507a08c87ecfe98, got %s", req.ClientID)
@@ -135,34 +135,34 @@ func TestAuthenticate(t *testing.T) {
 		if req.GrantType != "urn:ietf:params:oauth:grant-type:device_code" {
 			t.Errorf("Expected grant_type: urn:ietf:params:oauth:grant-type:device_code, got %s", req.GrantType)
 		}
-		
+
 		// Return mock response
 		response := AuthenticationResponse{
 			AccessToken: "test-access-token",
 			TokenType:   "bearer",
 			Scope:       "read:user",
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
-	
+
 	// Override the authentication endpoint for testing
 	originalEndpoint := github_authentication_endpoint
 	github_authentication_endpoint = server.URL
 	defer func() { github_authentication_endpoint = originalEndpoint }()
-	
+
 	// Test the Authenticate function
 	loginResp := LoginResponse{
 		DeviceCode: "test-device-code",
 	}
-	
+
 	authResp, err := Authenticate(loginResp)
 	if err != nil {
 		t.Fatalf("Authenticate failed: %v", err)
 	}
-	
+
 	// Verify response
 	if authResp.AccessToken != "test-access-token" {
 		t.Errorf("Expected access_token: test-access-token, got %s", authResp.AccessToken)
@@ -179,34 +179,34 @@ func TestGetSessionToken(t *testing.T) {
 		if r.Method != http.MethodGet {
 			t.Errorf("Expected GET request, got %s", r.Method)
 		}
-		
+
 		// Verify authorization header
 		authHeader := r.Header.Get("authorization")
 		if authHeader != "token test-access-token" {
 			t.Errorf("Expected authorization: token test-access-token, got %s", authHeader)
 		}
-		
+
 		// Return mock response with a token that contains exp parameter
 		response := SessionResponse{
 			Token: "test-session-token;exp=1234567890;sig=abcdef",
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
-	
+
 	// Override the session endpoint for testing
 	originalEndpoint := github_session_endpoint
 	github_session_endpoint = server.URL
 	defer func() { github_session_endpoint = originalEndpoint }()
-	
+
 	// Test the GetSessionToken function
 	sessionResp, err := GetSessionToken("test-access-token")
 	if err != nil {
 		t.Fatalf("GetSessionToken failed: %v", err)
 	}
-	
+
 	// Verify response
 	expectedToken := "test-session-token;exp=1234567890;sig=abcdef"
 	if sessionResp.Token != expectedToken {
@@ -224,18 +224,18 @@ func TestChat(t *testing.T) {
 		if r.Method != http.MethodPost {
 			t.Errorf("Expected POST request, got %s", r.Method)
 		}
-		
+
 		// Verify authorization header
 		authHeader := r.Header.Get("authorization")
 		if authHeader != "Bearer test-session-token" {
 			t.Errorf("Expected authorization: Bearer test-session-token, got %s", authHeader)
 		}
-		
+
 		var req CompletionRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			t.Errorf("Failed to decode request body: %v", err)
 		}
-		
+
 		// Verify request structure
 		if req.Model != "test-model" {
 			t.Errorf("Expected model: test-model, got %s", req.Model)
@@ -249,7 +249,7 @@ func TestChat(t *testing.T) {
 		if req.Messages[0].Content != "Hello" {
 			t.Errorf("Expected content: Hello, got %s", req.Messages[0].Content)
 		}
-		
+
 		// Return mock response
 		response := CompletionResponse{
 			ID:      "chatcmpl-test123",
@@ -272,32 +272,32 @@ func TestChat(t *testing.T) {
 				TotalTokens:      12,
 			},
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
-	
+
 	// Override the completion endpoint for testing
 	originalEndpoint := github_completion_endpoint
 	github_completion_endpoint = server.URL
 	defer func() { github_completion_endpoint = originalEndpoint }()
-	
+
 	// Test the Chat function
 	messages := []Message{
 		{Role: "user", Content: "Hello"},
 	}
-	
+
 	var receivedResponse CompletionResponse
 	err := Chat("test-session-token", messages, "test-model", 0.7, 0.9, 1, false, func(response CompletionResponse) error {
 		receivedResponse = response
 		return nil
 	})
-	
+
 	if err != nil {
 		t.Fatalf("Chat failed: %v", err)
 	}
-	
+
 	// Verify response
 	if receivedResponse.ID != "chatcmpl-test123" {
 		t.Errorf("Expected ID: chatcmpl-test123, got %s", receivedResponse.ID)
@@ -333,25 +333,25 @@ func TestChatError(t *testing.T) {
 		json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
-	
+
 	// Override the completion endpoint for testing
 	originalEndpoint := github_completion_endpoint
 	github_completion_endpoint = server.URL
 	defer func() { github_completion_endpoint = originalEndpoint }()
-	
+
 	// Test the Chat function with error
 	messages := []Message{
 		{Role: "user", Content: "Hello"},
 	}
-	
+
 	err := Chat("invalid-token", messages, "test-model", 0.7, 0.9, 1, false, func(response CompletionResponse) error {
 		return nil
 	})
-	
+
 	if err == nil {
 		t.Fatal("Expected Chat to return an error, but it succeeded")
 	}
-	
+
 	expectedError := "API error: Invalid token (code: invalid_token, type: unauthorized)"
 	if err.Error() != expectedError {
 		t.Errorf("Expected error: %s, got %s", expectedError, err.Error())
@@ -388,7 +388,7 @@ func TestCompletionRequestValidation(t *testing.T) {
 			expected: true, // Empty messages should be allowed for validation
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test JSON marshaling/unmarshaling
@@ -396,13 +396,13 @@ func TestCompletionRequestValidation(t *testing.T) {
 			if err != nil {
 				t.Errorf("Failed to marshal request: %v", err)
 			}
-			
+
 			var unmarshaled CompletionRequest
 			err = json.Unmarshal(data, &unmarshaled)
 			if err != nil {
 				t.Errorf("Failed to unmarshal request: %v", err)
 			}
-			
+
 			// Verify structure integrity
 			if unmarshaled.Model != tt.request.Model {
 				t.Errorf("Model mismatch after marshal/unmarshal: expected %s, got %s", tt.request.Model, unmarshaled.Model)
@@ -424,11 +424,11 @@ func BenchmarkLoginRequest(b *testing.B) {
 		json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
-	
+
 	originalEndpoint := github_login_endpoint
 	github_login_endpoint = server.URL
 	defer func() { github_login_endpoint = originalEndpoint }()
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := Login()
