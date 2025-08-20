@@ -259,7 +259,7 @@ func TestChat(t *testing.T) {
 			Choices: []Choice{
 				{
 					Index: 0,
-					Message: Message{
+					Message: &Message{
 						Role:    "assistant",
 						Content: "Hello! How can I help you?",
 					},
@@ -310,7 +310,7 @@ func TestChat(t *testing.T) {
 	if len(receivedResponse.Choices) != 1 {
 		t.Errorf("Expected 1 choice, got %d", len(receivedResponse.Choices))
 	}
-	if receivedResponse.Choices[0].Message.Content != "Hello! How can I help you?" {
+	if receivedResponse.Choices[0].Message != nil && receivedResponse.Choices[0].Message.Content != "Hello! How can I help you?" {
 		t.Errorf("Expected content: Hello! How can I help you?, got %s", receivedResponse.Choices[0].Message.Content)
 	}
 	if receivedResponse.Usage.TotalTokens != 12 {

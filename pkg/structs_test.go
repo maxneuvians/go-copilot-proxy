@@ -83,7 +83,7 @@ func TestCompletionResponseOpenAICompatibility(t *testing.T) {
 		Choices: []Choice{
 			{
 				Index: 0,
-				Message: Message{
+				Message: &Message{
 					Role:    "assistant",
 					Content: "Hello! How can I help you?",
 				},
@@ -242,7 +242,7 @@ func TestChoiceSerialization(t *testing.T) {
 	choice := Choice{
 		FinishReason: "stop",
 		Index:        0,
-		Message: Message{
+		Message: &Message{
 			Role:    "assistant",
 			Content: "Test response",
 		},
@@ -268,11 +268,15 @@ func TestChoiceSerialization(t *testing.T) {
 	if unmarshaled.Index != choice.Index {
 		t.Errorf("Index mismatch: expected %d, got %d", choice.Index, unmarshaled.Index)
 	}
-	if unmarshaled.Message.Role != choice.Message.Role {
-		t.Errorf("Message.Role mismatch: expected %s, got %s", choice.Message.Role, unmarshaled.Message.Role)
-	}
-	if unmarshaled.Message.Content != choice.Message.Content {
-		t.Errorf("Message.Content mismatch: expected %s, got %s", choice.Message.Content, unmarshaled.Message.Content)
+	if unmarshaled.Message != nil && choice.Message != nil {
+		if unmarshaled.Message.Role != choice.Message.Role {
+			t.Errorf("Message.Role mismatch: expected %s, got %s", choice.Message.Role, unmarshaled.Message.Role)
+		}
+		if unmarshaled.Message.Content != choice.Message.Content {
+			t.Errorf("Message.Content mismatch: expected %s, got %s", choice.Message.Content, unmarshaled.Message.Content)
+		}
+	} else if unmarshaled.Message != choice.Message {
+		t.Errorf("Message pointer mismatch: one is nil, the other is not")
 	}
 }
 

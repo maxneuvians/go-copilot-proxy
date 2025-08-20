@@ -65,7 +65,7 @@ func createTestApp() *fiber.App {
 			Choices: []pkg.Choice{
 				{
 					Index: 0,
-					Message: pkg.Message{
+					Message: &pkg.Message{
 						Role:    "assistant",
 						Content: resp,
 					},
@@ -154,10 +154,10 @@ func TestChatEndpointValidRequest(t *testing.T) {
 	if completionResp.Choices[0].Index != 0 {
 		t.Errorf("Expected choice index: 0, got %d", completionResp.Choices[0].Index)
 	}
-	if completionResp.Choices[0].Message.Role != "assistant" {
+	if completionResp.Choices[0].Message != nil && completionResp.Choices[0].Message.Role != "assistant" {
 		t.Errorf("Expected message role: assistant, got %s", completionResp.Choices[0].Message.Role)
 	}
-	if completionResp.Choices[0].Message.Content == "" {
+	if completionResp.Choices[0].Message != nil && completionResp.Choices[0].Message.Content == "" {
 		t.Error("Message content should not be empty")
 	}
 	if completionResp.Choices[0].FinishReason != "stop" {
@@ -373,7 +373,7 @@ func TestChatEndpointMultipleMessages(t *testing.T) {
 	if len(completionResp.Choices) != 1 {
 		t.Errorf("Expected 1 choice, got %d", len(completionResp.Choices))
 	}
-	if completionResp.Choices[0].Message.Role != "assistant" {
+	if completionResp.Choices[0].Message != nil && completionResp.Choices[0].Message.Role != "assistant" {
 		t.Errorf("Expected assistant role, got %s", completionResp.Choices[0].Message.Role)
 	}
 

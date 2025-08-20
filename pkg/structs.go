@@ -14,10 +14,10 @@ type AuthenticationResponse struct {
 }
 
 type Choice struct {
-	FinishReason string  `json:"finish_reason,omitempty"`
-	Index        int64   `json:"index,omitempty"`
-	Message      Message `json:"message,omitempty"`
-	Delta        Message `json:"delta,omitempty"`
+	FinishReason string   `json:"finish_reason,omitempty"`
+	Index        int64    `json:"index,omitempty"`
+	Message      *Message `json:"message,omitempty"`
+	Delta        *Message `json:"delta,omitempty"`
 }
 
 type CompletionRequest struct {

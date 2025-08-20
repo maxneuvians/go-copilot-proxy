@@ -162,7 +162,12 @@ var startCmd = &cobra.Command{
 					return fmt.Errorf("no choices in completion response")
 				}
 
-				resp = completionResponse.Choices[0].Message.Content
+				choice := completionResponse.Choices[0]
+				if choice.Message != nil {
+					resp = choice.Message.Content
+				} else if choice.Delta != nil {
+					resp = choice.Delta.Content
+				}
 				completionResp = completionResponse
 				return nil
 			})
@@ -202,7 +207,7 @@ var startCmd = &cobra.Command{
 				Choices: []pkg.Choice{
 					{
 						Index: 0,
-						Message: pkg.Message{
+						Message: &pkg.Message{
 							Role:    "assistant",
 							Content: resp,
 						},
