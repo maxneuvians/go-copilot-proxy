@@ -28,7 +28,6 @@ var loginCmd = &cobra.Command{
 		}
 
 		loginResponse, err := pkg.Login()
-
 		if err != nil {
 			log.Error().Msgf("Error logging in: %s", err)
 			return
@@ -43,14 +42,13 @@ var loginCmd = &cobra.Command{
 
 		for {
 			authResponse, err = pkg.Authenticate(loginResponse)
-
 			if err != nil {
 				log.Error().Msgf("Error authenticating: %s", err)
 				return
 			}
 
 			if authResponse.AccessToken != "" {
-				log.Info().Msg("Authenticated succesfully!")
+				log.Info().Msg("Authenticated successfully!")
 				break
 			}
 
@@ -65,14 +63,12 @@ var loginCmd = &cobra.Command{
 
 		// Write the token to a file
 		file, err := os.Create(TOKEN_FILE)
-
 		if err != nil {
 			log.Error().Msgf("Error creating token file: %s", err)
 			return
 		}
 
 		_, err = file.WriteString(authResponse.AccessToken)
-
 		if err != nil {
 			log.Error().Msgf("Error writing token to file: %s", err)
 			return

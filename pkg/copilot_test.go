@@ -293,7 +293,6 @@ func TestChat(t *testing.T) {
 		receivedResponse = response
 		return nil
 	})
-
 	if err != nil {
 		t.Fatalf("Chat failed: %v", err)
 	}

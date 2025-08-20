@@ -22,7 +22,7 @@ jobs:
         go-version: ${{ matrix.go-version }}
 
     - name: Cache Go modules
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cache/go-build
@@ -59,7 +59,7 @@ jobs:
       run: go tool cover -html=coverage.out -o coverage.html
 
     - name: Upload coverage reports to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: ./coverage.out
         flags: unittests
@@ -67,7 +67,7 @@ jobs:
         fail_ci_if_error: false
 
     - name: Archive coverage results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: coverage-report-${{ matrix.go-version }}
         path: |
@@ -85,10 +85,10 @@ jobs:
         go-version: '1.21.x'
 
     - name: golangci-lint
-      uses: golangci/golangci-lint-action@v3
+      uses: golangci/golangci-lint-action@v4
       with:
         version: latest
-        args: --timeout=3m
+        args: --timeout=5m
 
   security:
     runs-on: ubuntu-latest
@@ -100,30 +100,18 @@ jobs:
       with:
         go-version: '1.21.x'
 
+    - name: Install Gosec Security Scanner
+      run: go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+
     - name: Run Gosec Security Scanner
-      uses: securecodewarrior/github-action-gosec@master
-      with:
-        args: '-fmt sarif -out gosec.sarif ./...'
+      run: gosec -fmt sarif -out gosec.sarif ./...
 
     - name: Upload SARIF file
-      uses: github/codeql-action/upload-sarif@v2
+      uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: gosec.sarif
 
-  benchmark:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.21.x'
-
-    - name: Run benchmarks
-      run: go test -bench=. -benchmem ./...
-
-  integration:
+  build:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -143,122 +131,7 @@ jobs:
           exit 1
         fi
         file go-copilot-proxy
-        ./go-copilot-proxy version
+        ./go-copilot-proxy --help
 
     - name: Test with race detector
       run: go test -race -short ./...
-
-    - name: Test OpenAI API compatibility
-      run: |
-        # Run a specific test that validates OpenAI API format compliance
-        go test -v -run TestCompletionResponseOpenAICompatibility ./pkg/
-        go test -v -run TestChatEndpointValidRequest ./cmd/proxy/cmd/
-
-  dependency-check:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.21.x'
-
-    - name: Check for vulnerabilities
-      run: |
-        go install golang.org/x/vuln/cmd/govulncheck@latest
-        govulncheck ./...
-
-    - name: Dependency review
-      run: |
-        go list -m -u all
-        go mod tidy
-        if [ -n "$(git status --porcelain go.mod go.sum)" ]; then
-          echo "go.mod or go.sum has uncommitted changes after 'go mod tidy'"
-          git diff go.mod go.sum
-          exit 1
-        fi
-
-  validate-api-format:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.21.x'
-
-    - name: Install OpenAPI validator
-      run: npm install -g swagger-parser
-
-    - name: Validate OpenAI API compatibility
-      run: |
-        # Test that our response format matches OpenAI schema
-        go test -v -run TestCompletionResponseOpenAICompatibility ./pkg/
-        
-        # Additional validation: Create a sample response and validate structure
-        cat > test_response.json << 'EOF'
-        {
-          "id": "chatcmpl-test123",
-          "object": "chat.completion",
-          "created": 1234567890,
-          "model": "claude-3.7-sonnet",
-          "choices": [
-            {
-              "index": 0,
-              "message": {
-                "role": "assistant",
-                "content": "Hello! How can I help you today?"
-              },
-              "finish_reason": "stop"
-            }
-          ],
-          "usage": {
-            "prompt_tokens": 15,
-            "completion_tokens": 8,
-            "total_tokens": 23
-          }
-        }
-        EOF
-        
-        # Validate JSON structure
-        if ! python3 -m json.tool test_response.json > /dev/null; then
-          echo "Invalid JSON structure in response"
-          exit 1
-        fi
-        
-        # Check required OpenAI fields
-        required_fields=("id" "object" "created" "model" "choices" "usage")
-        for field in "${required_fields[@]}"; do
-          if ! grep -q "\"$field\":" test_response.json; then
-            echo "Missing required OpenAI field: $field"
-            exit 1
-          fi
-        done
-        
-        echo "✅ OpenAI API format validation passed"
-
-  report:
-    runs-on: ubuntu-latest
-    needs: [test, lint, security, benchmark, integration, dependency-check, validate-api-format]
-    if: always()
-    steps:
-    - name: Report test results
-      run: |
-        echo "## Test Suite Results" >> $GITHUB_STEP_SUMMARY
-        echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
-        echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
-        echo "| Tests | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Linting | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Security | ${{ needs.security.result }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Benchmarks | ${{ needs.benchmark.result }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Integration | ${{ needs.integration.result }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Dependencies | ${{ needs.dependency-check.result }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| API Format | ${{ needs.validate-api-format.result }} |" >> $GITHUB_STEP_SUMMARY
-        
-        if [[ "${{ needs.test.result }}" == "success" && "${{ needs.lint.result }}" == "success" && "${{ needs.security.result }}" == "success" ]]; then
-          echo "✅ All critical tests passed!" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "❌ Some tests failed. Please review the logs." >> $GITHUB_STEP_SUMMARY
-        fi

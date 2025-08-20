@@ -12,14 +12,18 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var editor_client_id = "Iv1.b507a08c87ecfe98"
-var editor_version = "vscode/1.83.1"
-var editor_plugin_version = "copilot-chat/0.8.0"
+var (
+	editor_client_id      = "Iv1.b507a08c87ecfe98"
+	editor_version        = "vscode/1.83.1"
+	editor_plugin_version = "copilot-chat/0.8.0"
+)
 
-var github_authentication_endpoint = "https://github.com/login/oauth/access_token"
-var github_completion_endpoint = "https://api.githubcopilot.com/chat/completions"
-var github_login_endpoint = "https://github.com/login/device/code"
-var github_session_endpoint = "https://api.github.com/copilot_internal/v2/token"
+var (
+	github_authentication_endpoint = "https://github.com/login/oauth/access_token"
+	github_completion_endpoint     = "https://api.githubcopilot.com/chat/completions"
+	github_login_endpoint          = "https://github.com/login/device/code"
+	github_session_endpoint        = "https://api.github.com/copilot_internal/v2/token"
+)
 
 var user_agent = "githubCopilot/1.155.0"
 
@@ -33,14 +37,12 @@ func Authenticate(login LoginResponse) (AuthenticationResponse, error) {
 	}
 
 	jsonBody, err := json.Marshal(body)
-
 	if err != nil {
-		log.Error().Msgf("Error marshalling json: %s", err)
+		log.Error().Msgf("Error marshaling json: %s", err)
 		return authResponse, err
 	}
 
 	req, err := http.NewRequest(http.MethodPost, github_authentication_endpoint, bytes.NewBuffer(jsonBody))
-
 	if err != nil {
 		log.Error().Msgf("Error creating request: %s", err)
 		return authResponse, err
@@ -54,7 +56,6 @@ func Authenticate(login LoginResponse) (AuthenticationResponse, error) {
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
-
 	if err != nil {
 		log.Error().Msgf("Error sending request: %s", err)
 		return authResponse, err
@@ -93,7 +94,6 @@ func Authenticate(login LoginResponse) (AuthenticationResponse, error) {
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&authResponse)
-
 	if err != nil {
 		log.Error().Msgf("Error decoding response: %s", err)
 		return authResponse, err
@@ -112,9 +112,8 @@ func Chat(token string, messages []Message, model string, temperature float64, t
 	}
 
 	jsonBody, err := json.Marshal(body)
-
 	if err != nil {
-		log.Error().Msgf("Error marshalling json: %s", err)
+		log.Error().Msgf("Error marshaling json: %s", err)
 		return err
 	}
 
@@ -133,7 +132,6 @@ func Chat(token string, messages []Message, model string, temperature float64, t
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
-
 	if err != nil {
 		log.Error().Msgf("Error sending request: %s", err)
 		return err
@@ -194,7 +192,6 @@ func Chat(token string, messages []Message, model string, temperature float64, t
 			}
 
 			err = json.Unmarshal(b, &completionResponse)
-
 			if err != nil {
 				log.Error().Msgf("Error decoding response: %s", err)
 				return err
@@ -204,18 +201,21 @@ func Chat(token string, messages []Message, model string, temperature float64, t
 				continue
 			}
 
-			callback(completionResponse)
+			if err := callback(completionResponse); err != nil {
+				log.Error().Msgf("Callback error: %s", err)
+			}
 		}
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&completionResponse)
-
 	if err != nil {
 		log.Error().Msgf("Error decoding response: %s", err)
 		return err
 	}
 
-	callback(completionResponse)
+	if err := callback(completionResponse); err != nil {
+		log.Error().Msgf("Callback error: %s", err)
+	}
 	return nil
 }
 
@@ -223,7 +223,6 @@ func GetSessionToken(accessToken string) (SessionResponse, error) {
 	var sessionResponse SessionResponse
 
 	req, err := http.NewRequest(http.MethodGet, github_session_endpoint, nil)
-
 	if err != nil {
 		log.Error().Msgf("Error creating request: %s", err)
 		return sessionResponse, err
@@ -237,7 +236,6 @@ func GetSessionToken(accessToken string) (SessionResponse, error) {
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
-
 	if err != nil {
 		log.Error().Msgf("Error sending request: %s", err)
 		return sessionResponse, err
@@ -276,7 +274,6 @@ func GetSessionToken(accessToken string) (SessionResponse, error) {
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&sessionResponse)
-
 	if err != nil {
 		log.Error().Msgf("Error decoding response: %s", err)
 		return sessionResponse, err
@@ -291,7 +288,6 @@ func GetSessionToken(accessToken string) (SessionResponse, error) {
 	}
 
 	exp, err := strconv.ParseInt(matches[1], 10, 64)
-
 	if err != nil {
 		log.Error().Msgf("Error parsing token: %s", err)
 		return sessionResponse, err
@@ -311,13 +307,11 @@ func Login() (LoginResponse, error) {
 	}
 
 	jsonBody, err := json.Marshal(body)
-
 	if err != nil {
 		return loginResponse, err
 	}
 
 	req, err := http.NewRequest(http.MethodPost, github_login_endpoint, bytes.NewBuffer(jsonBody))
-
 	if err != nil {
 		return loginResponse, err
 	}
@@ -330,7 +324,6 @@ func Login() (LoginResponse, error) {
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
-
 	if err != nil {
 		return loginResponse, err
 	}
@@ -368,7 +361,6 @@ func Login() (LoginResponse, error) {
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&loginResponse)
-
 	if err != nil {
 		return loginResponse, err
 	}

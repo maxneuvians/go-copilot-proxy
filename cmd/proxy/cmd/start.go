@@ -17,11 +17,13 @@ import (
 
 var session_token string
 
-var Model = "claude-3.7-sonnet"
-var Completion_temperature = 0.3
-var Completion_top_p = 0.9
-var Completion_n = int64(1)
-var Completion_stream = true
+var (
+	Model                  = "claude-3.7-sonnet"
+	Completion_temperature = 0.3
+	Completion_top_p       = 0.9
+	Completion_n           = int64(1)
+	Completion_stream      = true
+)
 
 type Payload struct {
 	Completion_N *int64        `json:"n,omitempty"`
@@ -40,7 +42,6 @@ var startCmd = &cobra.Command{
 	Short: "Start the proxy server",
 	Long:  `Start the proxy server to enable GitHub Copilot proxy.`,
 	Run: func(cmd *cobra.Command, args []string) {
-
 		app := fiber.New()
 		// Add CORS middleware
 		app.Use(cors.New(cors.Config{
@@ -59,7 +60,6 @@ var startCmd = &cobra.Command{
 
 		// Get the authentication token
 		file, err := os.Open(TOKEN_FILE)
-
 		if err != nil {
 			log.Error().Msgf("Error opening token file: %s", err)
 			return
@@ -68,7 +68,6 @@ var startCmd = &cobra.Command{
 		// If the file exists, read the first line
 		r := bufio.NewReader(file)
 		buffer, _, err := r.ReadLine()
-
 		if err != nil {
 			log.Error().Msgf("Error reading token from file: %s", err)
 			return
@@ -78,7 +77,6 @@ var startCmd = &cobra.Command{
 
 		// Get a session token from the token
 		sessionResponse, err := pkg.GetSessionToken(token)
-
 		if err != nil {
 			log.Error().Msgf("Error getting session token: %s", err)
 			return
@@ -95,7 +93,6 @@ var startCmd = &cobra.Command{
 
 				// Get a new session token
 				sessionResponse, err := pkg.GetSessionToken(token)
-
 				if err != nil {
 					log.Error().Msgf("Error getting session token: %s", err)
 					return
@@ -169,7 +166,6 @@ var startCmd = &cobra.Command{
 				completionResp = completionResponse
 				return nil
 			})
-
 			if err != nil {
 				log.Error().
 					Err(err).
@@ -229,6 +225,5 @@ var startCmd = &cobra.Command{
 		})
 
 		app.Listen(":3000")
-
 	},
 }
