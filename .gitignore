@@ -29,7 +29,7 @@ node_modules/
 
 # UI build artifacts
 ui/dist/
-proxy
+proxy-binary
 
 # Test artifacts
 coverage.out
