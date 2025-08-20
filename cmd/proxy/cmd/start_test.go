@@ -80,10 +80,9 @@ func createTestApp() *fiber.App {
 					},
 				}
 
-				// For the last chunk, set finish_reason
+				// For the last chunk, set finish_reason but keep the content
 				if i == len(chunks)-1 {
 					streamChunk.Choices[0].FinishReason = pkg.FinishReasonStop
-					streamChunk.Choices[0].Delta.Content = ""
 				}
 
 				chunkBytes, _ := json.Marshal(streamChunk)

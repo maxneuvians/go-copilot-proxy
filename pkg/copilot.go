@@ -205,6 +205,9 @@ func Chat(token string, messages []Message, model string, temperature float64, t
 				log.Error().Msgf("Callback error: %s", err)
 			}
 		}
+
+		// For streaming mode, we're done processing - don't continue to non-streaming code
+		return nil
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&completionResponse)
