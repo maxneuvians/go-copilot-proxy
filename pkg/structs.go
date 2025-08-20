@@ -33,6 +33,8 @@ type CompletionResponse struct {
 	Choices []Choice `json:"choices"`
 	Created int64    `json:"created,omitempty"`
 	ID      string   `json:"id"`
+	Object  string   `json:"object"`
+	Model   string   `json:"model,omitempty"`
 	Usage   Usage    `json:"usage,omitempty"`
 }
 

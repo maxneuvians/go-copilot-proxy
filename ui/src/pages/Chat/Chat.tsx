@@ -86,10 +86,16 @@ export function ChatContent() {
             console.log('sending message:', updatedHistory);
 
             const response = await chatService.sendMessage(updatedHistory);
+            
+            // Extract content from OpenAI format or fallback to old format
+            const responseContent = response.content || 
+                (response.choices && response.choices[0]?.message?.content) || 
+                "No response content available";
+            
             // Create AI message from response
             const aiMessage: Message = {
                 id: Date.now() + 1,
-                text: response.content,
+                text: responseContent,
                 sender: 'ai',
                 timestamp: new Date()
             };
@@ -97,7 +103,7 @@ export function ChatContent() {
             // Update conversation history with AI response
             setConversationHistory(prev => [
                 ...prev,
-                { role: 'assistant', content: response.content }
+                { role: 'assistant', content: responseContent }
             ]);
 
             setMessages(prev => [...prev, aiMessage]);

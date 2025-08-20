@@ -10,8 +10,25 @@ interface ChatRequest {
 }
 
 interface ChatResponse {
-  content: string;
-  // Add other fields if your API returns more data
+  id?: string;
+  object?: string;
+  created?: number;
+  model?: string;
+  choices?: Array<{
+    index: number;
+    message: {
+      role: string;
+      content: string;
+    };
+    finish_reason?: string;
+  }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+  // Backward compatibility
+  content?: string;
 }
 
 export class ChatApiService {
@@ -35,7 +52,19 @@ export class ChatApiService {
         throw new Error(`API request failed with status: ${response.status}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      
+      // Handle OpenAI format response
+      if (data.choices && data.choices.length > 0) {
+        // Return OpenAI format with backward compatibility
+        return {
+          ...data,
+          content: data.choices[0].message.content // Add backward compatibility field
+        };
+      }
+      
+      // Fallback for old format
+      return data;
     } catch (error) {
       console.error('Error sending message to chat API:', error);
       throw error;

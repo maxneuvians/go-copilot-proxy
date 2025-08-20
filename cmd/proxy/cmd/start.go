@@ -8,6 +8,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/google/uuid"
 	"github.com/maxneuvians/go-copilot-proxy/pkg"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -153,6 +154,7 @@ var startCmd = &cobra.Command{
 
 			resp := ""
 			startTime := time.Now()
+			var completionResp pkg.CompletionResponse
 
 			err := pkg.Chat(session_token, payload.Messages, model, temperature, topP, n, false, func(completionResponse pkg.CompletionResponse) error {
 				// Add validation and logging
@@ -164,6 +166,7 @@ var startCmd = &cobra.Command{
 				}
 				
 				resp = completionResponse.Choices[0].Message.Content
+				completionResp = completionResponse
 				return nil
 			})
 
@@ -181,17 +184,35 @@ var startCmd = &cobra.Command{
 				})
 			}
 
+			// Create OpenAI-compatible response
+			openAIResponse := pkg.CompletionResponse{
+				ID:      "chatcmpl-" + uuid.New().String(),
+				Object:  "chat.completion",
+				Created: time.Now().Unix(),
+				Model:   model,
+				Choices: []pkg.Choice{
+					{
+						Index: 0,
+						Message: pkg.Message{
+							Role:    "assistant",
+							Content: resp,
+						},
+						FinishReason: "stop",
+					},
+				},
+				Usage: completionResp.Usage, // Use usage from the original response if available
+			}
+
 			// Log successful response
-			responseJSON := fiber.Map{"content": resp}
 			log.Debug().
 				Str("model", model).
 				Int("response_length", len(resp)).
 				Float64("duration_ms", float64(time.Since(startTime).Milliseconds())).
-				Interface("response", responseJSON).  // Changed from RawJSON to Interface
+				Interface("response", openAIResponse).
 				Msg("Chat request completed successfully")
 
 			c.Set("Content-Type", "application/json")
-			return c.JSON(responseJSON)
+			return c.JSON(openAIResponse)
 		})
 
 		app.Listen(":3000")
