@@ -263,7 +263,7 @@ func TestChat(t *testing.T) {
 						Role:    "assistant",
 						Content: "Hello! How can I help you?",
 					},
-					FinishReason: "stop",
+					FinishReason: FinishReasonStop,
 				},
 			},
 			Usage: Usage{

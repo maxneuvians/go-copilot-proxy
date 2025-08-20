@@ -87,7 +87,7 @@ func TestCompletionResponseOpenAICompatibility(t *testing.T) {
 					Role:    "assistant",
 					Content: "Hello! How can I help you?",
 				},
-				FinishReason: "stop",
+				FinishReason: FinishReasonStop,
 			},
 		},
 		Usage: Usage{
@@ -147,7 +147,7 @@ func TestCompletionResponseOpenAICompatibility(t *testing.T) {
 	if index, exists := choice["index"]; exists && index != float64(0) {
 		t.Errorf("Choice index mismatch: expected 0, got %v", choice["index"])
 	}
-	if choice["finish_reason"] != "stop" {
+	if choice["finish_reason"] != FinishReasonStop {
 		t.Errorf("Finish reason mismatch: expected stop, got %v", choice["finish_reason"])
 	}
 
@@ -240,7 +240,7 @@ func TestUsageSerialization(t *testing.T) {
 
 func TestChoiceSerialization(t *testing.T) {
 	choice := Choice{
-		FinishReason: "stop",
+		FinishReason: FinishReasonStop,
 		Index:        0,
 		Message: &Message{
 			Role:    "assistant",

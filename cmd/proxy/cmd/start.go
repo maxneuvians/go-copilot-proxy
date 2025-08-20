@@ -315,7 +315,7 @@ var startCmd = &cobra.Command{
 								Role:    "assistant",
 								Content: resp,
 							},
-							FinishReason: "stop",
+							FinishReason: pkg.FinishReasonStop,
 						},
 					},
 					Usage: usage,

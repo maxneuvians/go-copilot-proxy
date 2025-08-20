@@ -82,7 +82,7 @@ func createTestApp() *fiber.App {
 
 				// For the last chunk, set finish_reason
 				if i == len(chunks)-1 {
-					streamChunk.Choices[0].FinishReason = "stop"
+					streamChunk.Choices[0].FinishReason = pkg.FinishReasonStop
 					streamChunk.Choices[0].Delta.Content = ""
 				}
 
@@ -119,7 +119,7 @@ func createTestApp() *fiber.App {
 							Role:    "assistant",
 							Content: resp,
 						},
-						FinishReason: "stop",
+						FinishReason: pkg.FinishReasonStop,
 					},
 				},
 				Usage: usage,
@@ -211,7 +211,7 @@ func TestChatEndpointValidRequest(t *testing.T) {
 	if completionResp.Choices[0].Message != nil && completionResp.Choices[0].Message.Content == "" {
 		t.Error("Message content should not be empty")
 	}
-	if completionResp.Choices[0].FinishReason != "stop" {
+	if completionResp.Choices[0].FinishReason != pkg.FinishReasonStop {
 		t.Errorf("Expected finish reason: stop, got %s", completionResp.Choices[0].FinishReason)
 	}
 	if completionResp.Usage.TotalTokens == 0 {
@@ -710,7 +710,7 @@ func TestChatEndpointStreamingRequest(t *testing.T) {
 	// Check that last chunk has finish_reason
 	if len(chunks) > 0 {
 		lastChunk := chunks[len(chunks)-1]
-		if lastChunk.Choices[0].FinishReason != "stop" {
+		if lastChunk.Choices[0].FinishReason != pkg.FinishReasonStop {
 			t.Errorf("Last chunk should have finish_reason 'stop', got '%s'", lastChunk.Choices[0].FinishReason)
 		}
 	}

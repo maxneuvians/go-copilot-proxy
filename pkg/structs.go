@@ -1,5 +1,10 @@
 package pkg
 
+// FinishReason constants for OpenAI API compatibility.
+const (
+	FinishReasonStop = "stop"
+)
+
 type AuthenticationRequest struct {
 	ClientID   string `json:"client_id"`
 	DeviceCode string `json:"device_code"`
