@@ -36,47 +36,98 @@ func createTestApp() *fiber.App {
 			})
 		}
 
+		// Determine streaming mode
+		stream := false
+		if payload.Stream != nil {
+			stream = *payload.Stream
+		}
+
 		// Use defaults if not provided
-		// Variables are declared but not used in this mock implementation
-		// since we're returning a fixed response
 		model := Model
 		if payload.Model != nil {
 			model = *payload.Model
 		}
 
-		// Mock response (simulate successful completion)
-		resp := "Hello! How can I help you today?"
+		if stream {
+			// Set SSE headers for streaming
+			c.Set("Content-Type", "text/event-stream")
+			c.Set("Cache-Control", "no-cache")
+			c.Set("Connection", "keep-alive")
+			c.Set("Access-Control-Allow-Origin", "*")
 
-		// Create usage estimation
-		promptTokens := int64(len(fmt.Sprintf("%v", payload.Messages)) / 4)
-		completionTokens := int64(len(resp) / 4)
-		usage := pkg.Usage{
-			PromptTokens:     promptTokens,
-			CompletionTokens: completionTokens,
-			TotalTokens:      promptTokens + completionTokens,
-		}
+			// Mock streaming response
+			completionID := "chatcmpl-test123"
+			created := time.Now().Unix()
 
-		// Create OpenAI-compatible response
-		openAIResponse := pkg.CompletionResponse{
-			ID:      "chatcmpl-test123",
-			Object:  "chat.completion",
-			Created: time.Now().Unix(),
-			Model:   model,
-			Choices: []pkg.Choice{
-				{
-					Index: 0,
-					Message: &pkg.Message{
-						Role:    "assistant",
-						Content: resp,
+			// Simulate streaming chunks
+			chunks := []string{"Hello", "! How", " can I", " help you", " today", "?"}
+
+			for i, chunk := range chunks {
+				streamChunk := pkg.CompletionResponse{
+					ID:      completionID,
+					Object:  "chat.completion.chunk",
+					Created: created,
+					Model:   model,
+					Choices: []pkg.Choice{
+						{
+							Index: 0,
+							Delta: &pkg.Message{
+								Role:    "assistant",
+								Content: chunk,
+							},
+							FinishReason: "",
+						},
 					},
-					FinishReason: "stop",
-				},
-			},
-			Usage: usage,
-		}
+				}
 
-		c.Set("Content-Type", "application/json")
-		return c.JSON(openAIResponse)
+				// For the last chunk, set finish_reason
+				if i == len(chunks)-1 {
+					streamChunk.Choices[0].FinishReason = "stop"
+					streamChunk.Choices[0].Delta.Content = ""
+				}
+
+				chunkBytes, _ := json.Marshal(streamChunk)
+				fmt.Fprintf(c.Response().BodyWriter(), "data: %s\n\n", string(chunkBytes))
+			}
+
+			// Send final [DONE] message
+			fmt.Fprintf(c.Response().BodyWriter(), "data: [DONE]\n\n")
+			return nil
+		} else {
+			// Non-streaming response (existing logic)
+			resp := "Hello! How can I help you today?"
+
+			// Create usage estimation
+			promptTokens := int64(len(fmt.Sprintf("%v", payload.Messages)) / 4)
+			completionTokens := int64(len(resp) / 4)
+			usage := pkg.Usage{
+				PromptTokens:     promptTokens,
+				CompletionTokens: completionTokens,
+				TotalTokens:      promptTokens + completionTokens,
+			}
+
+			// Create OpenAI-compatible response
+			openAIResponse := pkg.CompletionResponse{
+				ID:      "chatcmpl-test123",
+				Object:  "chat.completion",
+				Created: time.Now().Unix(),
+				Model:   model,
+				Choices: []pkg.Choice{
+					{
+						Index: 0,
+						Message: &pkg.Message{
+							Role:    "assistant",
+							Content: resp,
+						},
+						FinishReason: "stop",
+					},
+				},
+				Usage: usage,
+			}
+
+			c.Set("Content-Type", "application/json")
+			return c.JSON(openAIResponse)
+		}
 	})
 
 	return app
@@ -542,5 +593,224 @@ func TestTokenEstimation(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestChatEndpointStreamingRequest(t *testing.T) {
+	app := createTestApp()
+
+	// Create test request with streaming enabled
+	streamValue := true
+	payload := Payload{
+		Messages: []pkg.Message{
+			{Role: "user", Content: "Hello, how are you?"},
+		},
+		Stream: &streamValue,
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("Failed to marshal payload: %v", err)
+	}
+
+	// Create HTTP request
+	req := httptest.NewRequest(http.MethodPost, "/chat", bytes.NewBuffer(payloadBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	// Execute request
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Failed to execute request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Check status code
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("Expected status 200, got %d. Body: %s", resp.StatusCode, string(body))
+	}
+
+	// Check SSE headers
+	contentType := resp.Header.Get("Content-Type")
+	if contentType != "text/event-stream" {
+		t.Errorf("Expected Content-Type: text/event-stream, got %s", contentType)
+	}
+
+	cacheControl := resp.Header.Get("Cache-Control")
+	if cacheControl != "no-cache" {
+		t.Errorf("Expected Cache-Control: no-cache, got %s", cacheControl)
+	}
+
+	connection := resp.Header.Get("Connection")
+	if connection != "keep-alive" {
+		t.Errorf("Expected Connection: keep-alive, got %s", connection)
+	}
+
+	// Read and validate SSE response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read response body: %v", err)
+	}
+
+	bodyStr := string(body)
+
+	// Check for SSE format
+	if !strings.Contains(bodyStr, "data: ") {
+		t.Error("Response should contain SSE formatted data")
+	}
+
+	// Check for [DONE] marker
+	if !strings.Contains(bodyStr, "data: [DONE]") {
+		t.Error("Response should end with [DONE] marker")
+	}
+
+	// Parse individual chunks
+	lines := strings.Split(bodyStr, "\n")
+	var chunks []pkg.CompletionResponse
+	for _, line := range lines {
+		if strings.HasPrefix(line, "data: ") {
+			data := strings.TrimPrefix(line, "data: ")
+			if data == "[DONE]" {
+				break
+			}
+
+			var chunk pkg.CompletionResponse
+			if err := json.Unmarshal([]byte(data), &chunk); err == nil {
+				chunks = append(chunks, chunk)
+			}
+		}
+	}
+
+	// Validate chunks
+	if len(chunks) == 0 {
+		t.Error("Should have received at least one chunk")
+	}
+
+	for i, chunk := range chunks {
+		// Check basic structure
+		if !strings.HasPrefix(chunk.ID, "chatcmpl-") {
+			t.Errorf("Chunk %d: Expected ID to start with 'chatcmpl-', got %s", i, chunk.ID)
+		}
+		if chunk.Object != "chat.completion.chunk" {
+			t.Errorf("Chunk %d: Expected object 'chat.completion.chunk', got %s", i, chunk.Object)
+		}
+		if len(chunk.Choices) != 1 {
+			t.Errorf("Chunk %d: Expected 1 choice, got %d", i, len(chunk.Choices))
+		}
+
+		choice := chunk.Choices[0]
+		if choice.Delta == nil {
+			t.Errorf("Chunk %d: Choice should have delta field for streaming", i)
+		}
+		if choice.Message != nil {
+			t.Errorf("Chunk %d: Choice should not have message field for streaming", i)
+		}
+	}
+
+	// Check that last chunk has finish_reason
+	if len(chunks) > 0 {
+		lastChunk := chunks[len(chunks)-1]
+		if lastChunk.Choices[0].FinishReason != "stop" {
+			t.Errorf("Last chunk should have finish_reason 'stop', got '%s'", lastChunk.Choices[0].FinishReason)
+		}
+	}
+}
+
+func TestChatEndpointNonStreamingDefault(t *testing.T) {
+	app := createTestApp()
+
+	// Create test request without stream parameter (should default to non-streaming)
+	payload := Payload{
+		Messages: []pkg.Message{
+			{Role: "user", Content: "Hello, how are you?"},
+		},
+		// Stream is nil, should default to false
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("Failed to marshal payload: %v", err)
+	}
+
+	// Create HTTP request
+	req := httptest.NewRequest(http.MethodPost, "/chat", bytes.NewBuffer(payloadBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	// Execute request
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Failed to execute request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Should be non-streaming response
+	contentType := resp.Header.Get("Content-Type")
+	if !strings.Contains(contentType, "application/json") {
+		t.Errorf("Expected Content-Type to contain application/json, got %s", contentType)
+	}
+
+	// Should not have SSE headers
+	if resp.Header.Get("Cache-Control") == "no-cache" {
+		t.Error("Non-streaming response should not have SSE cache headers")
+	}
+}
+
+func TestChatEndpointStreamingFalse(t *testing.T) {
+	app := createTestApp()
+
+	// Create test request with streaming explicitly disabled
+	streamValue := false
+	payload := Payload{
+		Messages: []pkg.Message{
+			{Role: "user", Content: "Hello, how are you?"},
+		},
+		Stream: &streamValue,
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("Failed to marshal payload: %v", err)
+	}
+
+	// Create HTTP request
+	req := httptest.NewRequest(http.MethodPost, "/chat", bytes.NewBuffer(payloadBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	// Execute request
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Failed to execute request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Should be non-streaming response
+	contentType := resp.Header.Get("Content-Type")
+	if !strings.Contains(contentType, "application/json") {
+		t.Errorf("Expected Content-Type to contain application/json, got %s", contentType)
+	}
+
+	// Parse response as regular JSON (not SSE)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read response body: %v", err)
+	}
+
+	var completionResp pkg.CompletionResponse
+	err = json.Unmarshal(body, &completionResp)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	// Should have message field, not delta
+	if len(completionResp.Choices) != 1 {
+		t.Fatalf("Expected 1 choice, got %d", len(completionResp.Choices))
+	}
+
+	choice := completionResp.Choices[0]
+	if choice.Message == nil {
+		t.Error("Non-streaming response should have message field")
+	}
+	if choice.Delta != nil {
+		t.Error("Non-streaming response should not have delta field")
 	}
 }

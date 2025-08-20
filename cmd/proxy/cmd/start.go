@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -31,6 +32,7 @@ type Payload struct {
 	Model        *string       `json:"model,omitempty"`
 	Temperature  *float64      `json:"temperature,omitempty"`
 	TopP         *float64      `json:"top_p,omitempty"`
+	Stream       *bool         `json:"stream,omitempty"`
 }
 
 func init() {
@@ -122,10 +124,21 @@ var startCmd = &cobra.Command{
 				})
 			}
 
+			// Determine streaming mode
+			stream := false
+			if payload.Stream != nil {
+				stream = *payload.Stream
+			}
+
 			// Log parsed payload details
+			modelStr := Model
+			if payload.Model != nil {
+				modelStr = *payload.Model
+			}
 			log.Debug().
 				Int("message_count", len(payload.Messages)).
-				Str("model", *payload.Model).
+				Str("model", modelStr).
+				Bool("stream", stream).
 				Interface("messages", payload.Messages).
 				Msg("Processing chat request")
 
@@ -149,84 +162,176 @@ var startCmd = &cobra.Command{
 				topP = *payload.TopP
 			}
 
-			resp := ""
 			startTime := time.Now()
-			var completionResp pkg.CompletionResponse
 
-			err := pkg.Chat(session_token, payload.Messages, model, temperature, topP, n, false, func(completionResponse pkg.CompletionResponse) error {
-				// Add validation and logging
-				if len(completionResponse.Choices) == 0 {
-					log.Error().
-						Interface("response", completionResponse).
-						Msg("Empty choices array in completion response")
-					return fmt.Errorf("no choices in completion response")
-				}
+			if stream {
+				// Set SSE headers for streaming
+				c.Set("Content-Type", "text/event-stream")
+				c.Set("Cache-Control", "no-cache")
+				c.Set("Connection", "keep-alive")
+				c.Set("Access-Control-Allow-Origin", "*")
 
-				choice := completionResponse.Choices[0]
-				if choice.Message != nil {
-					resp = choice.Message.Content
-				} else if choice.Delta != nil {
-					resp = choice.Delta.Content
-				}
-				completionResp = completionResponse
-				return nil
-			})
-			if err != nil {
-				log.Error().
-					Err(err).
-					Str("model", model).
-					Float64("temperature", temperature).
-					Float64("top_p", topP).
-					Int64("n", n).
-					Interface("messages", payload.Messages).
-					Msg("Failed to get chat completion")
-				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-					"error": fmt.Sprintf("Failed to process chat request: %v", err),
-				})
-			}
+				// Generate unique ID for this completion
+				completionID := "chatcmpl-" + uuid.New().String()
+				created := time.Now().Unix()
 
-			// Create OpenAI-compatible response
-			usage := completionResp.Usage
-			// If usage is not available from the original response, create default values
-			if usage.TotalTokens == 0 && usage.PromptTokens == 0 && usage.CompletionTokens == 0 {
-				// Estimate token counts (rough approximation)
-				promptTokens := int64(len(fmt.Sprintf("%v", payload.Messages)) / 4)
-				completionTokens := int64(len(resp) / 4)
-				usage = pkg.Usage{
-					PromptTokens:     promptTokens,
-					CompletionTokens: completionTokens,
-					TotalTokens:      promptTokens + completionTokens,
-				}
-			}
+				// Handle streaming response
+				err := pkg.Chat(session_token, payload.Messages, model, temperature, topP, n, true, func(completionResponse pkg.CompletionResponse) error {
+					if len(completionResponse.Choices) == 0 {
+						return nil
+					}
 
-			openAIResponse := pkg.CompletionResponse{
-				ID:      "chatcmpl-" + uuid.New().String(),
-				Object:  "chat.completion",
-				Created: time.Now().Unix(),
-				Model:   model,
-				Choices: []pkg.Choice{
-					{
-						Index: 0,
-						Message: &pkg.Message{
-							Role:    "assistant",
-							Content: resp,
+					choice := completionResponse.Choices[0]
+
+					// Create streaming response chunk
+					streamChunk := pkg.CompletionResponse{
+						ID:      completionID,
+						Object:  "chat.completion.chunk",
+						Created: created,
+						Model:   model,
+						Choices: []pkg.Choice{
+							{
+								Index:        choice.Index,
+								Delta:        choice.Delta,
+								FinishReason: choice.FinishReason,
+							},
 						},
-						FinishReason: "stop",
+					}
+
+					// Marshal and send chunk
+					chunkBytes, err := json.Marshal(streamChunk)
+					if err != nil {
+						log.Error().Err(err).Msg("Failed to marshal stream chunk")
+						return err
+					}
+
+					// Write SSE formatted data
+					_, writeErr := fmt.Fprintf(c.Response().BodyWriter(), "data: %s\n\n", string(chunkBytes))
+					if writeErr != nil {
+						log.Error().Err(writeErr).Msg("Failed to write stream chunk")
+						return writeErr
+					}
+
+					// Flush the response
+					if f, ok := c.Response().BodyWriter().(interface{ Flush() }); ok {
+						f.Flush()
+					}
+
+					return nil
+				})
+
+				if err != nil {
+					log.Error().
+						Err(err).
+						Str("model", model).
+						Float64("temperature", temperature).
+						Float64("top_p", topP).
+						Int64("n", n).
+						Interface("messages", payload.Messages).
+						Msg("Failed to get streaming chat completion")
+					// Send error in SSE format
+					errorData := map[string]interface{}{
+						"error": map[string]interface{}{
+							"message": fmt.Sprintf("Failed to process chat request: %v", err),
+							"type":    "server_error",
+						},
+					}
+					errorBytes, _ := json.Marshal(errorData)
+					fmt.Fprintf(c.Response().BodyWriter(), "data: %s\n\n", string(errorBytes))
+					return nil
+				}
+
+				// Send final [DONE] message
+				fmt.Fprintf(c.Response().BodyWriter(), "data: [DONE]\n\n")
+
+				// Log streaming completion
+				log.Debug().
+					Str("model", model).
+					Float64("duration_ms", float64(time.Since(startTime).Milliseconds())).
+					Str("completion_id", completionID).
+					Msg("Streaming chat request completed successfully")
+
+				return nil
+			} else {
+				// Non-streaming response (existing logic)
+				resp := ""
+				var completionResp pkg.CompletionResponse
+
+				err := pkg.Chat(session_token, payload.Messages, model, temperature, topP, n, false, func(completionResponse pkg.CompletionResponse) error {
+					// Add validation and logging
+					if len(completionResponse.Choices) == 0 {
+						log.Error().
+							Interface("response", completionResponse).
+							Msg("Empty choices array in completion response")
+						return fmt.Errorf("no choices in completion response")
+					}
+
+					choice := completionResponse.Choices[0]
+					if choice.Message != nil {
+						resp = choice.Message.Content
+					} else if choice.Delta != nil {
+						resp = choice.Delta.Content
+					}
+					completionResp = completionResponse
+					return nil
+				})
+				if err != nil {
+					log.Error().
+						Err(err).
+						Str("model", model).
+						Float64("temperature", temperature).
+						Float64("top_p", topP).
+						Int64("n", n).
+						Interface("messages", payload.Messages).
+						Msg("Failed to get chat completion")
+					return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+						"error": fmt.Sprintf("Failed to process chat request: %v", err),
+					})
+				}
+
+				// Create OpenAI-compatible response
+				usage := completionResp.Usage
+				// If usage is not available from the original response, create default values
+				if usage.TotalTokens == 0 && usage.PromptTokens == 0 && usage.CompletionTokens == 0 {
+					// Estimate token counts (rough approximation)
+					promptTokens := int64(len(fmt.Sprintf("%v", payload.Messages)) / 4)
+					completionTokens := int64(len(resp) / 4)
+					usage = pkg.Usage{
+						PromptTokens:     promptTokens,
+						CompletionTokens: completionTokens,
+						TotalTokens:      promptTokens + completionTokens,
+					}
+				}
+
+				openAIResponse := pkg.CompletionResponse{
+					ID:      "chatcmpl-" + uuid.New().String(),
+					Object:  "chat.completion",
+					Created: time.Now().Unix(),
+					Model:   model,
+					Choices: []pkg.Choice{
+						{
+							Index: 0,
+							Message: &pkg.Message{
+								Role:    "assistant",
+								Content: resp,
+							},
+							FinishReason: "stop",
+						},
 					},
-				},
-				Usage: usage,
+					Usage: usage,
+				}
+
+				// Log successful response
+				log.Debug().
+					Str("model", model).
+					Int("response_length", len(resp)).
+					Float64("duration_ms", float64(time.Since(startTime).Milliseconds())).
+					Interface("response", openAIResponse).
+					Msg("Chat request completed successfully")
+
+				c.Set("Content-Type", "application/json")
+				return c.JSON(openAIResponse)
 			}
-
-			// Log successful response
-			log.Debug().
-				Str("model", model).
-				Int("response_length", len(resp)).
-				Float64("duration_ms", float64(time.Since(startTime).Milliseconds())).
-				Interface("response", openAIResponse).
-				Msg("Chat request completed successfully")
-
-			c.Set("Content-Type", "application/json")
-			return c.JSON(openAIResponse)
 		})
 
 		app.Listen(":3000")
