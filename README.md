@@ -20,16 +20,50 @@ This will start the server on port 3000. You can now use the server as a proxy f
 @curl --location 'http://127.0.0.1:3000/chat' \
 		--header 'Content-Type: application/json' \
 				--data '{"messages": [{"role": "system", "content": "You are a comedian. Return valid JSON"},{"role": "user", "content": "Can you generate a joke about the canadian digital service?"}]}' \
-		| jq ".content"
+		| jq .
 ```
 
-Will result in:
+Will result in OpenAI-compatible format:
 
-```
+```json
 {
-  "joke": "Why did the Canadian Digital Service website load so slowly? Because every time it booted up, it kept saying, 'Sorry for the wait, eh?'"
+  "id": "chatcmpl-abc123...",
+  "object": "chat.completion",
+  "created": 1234567890,
+  "model": "claude-3.7-sonnet",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"joke\": \"Why did the Canadian Digital Service website load so slowly? Because every time it booted up, it kept saying, 'Sorry for the wait, eh?'\"}"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 45,
+    "completion_tokens": 32,
+    "total_tokens": 77
+  }
 }
 ```
+
+## Development & Testing
+
+This project includes a comprehensive test suite with unit tests, integration tests, and automated CI/CD pipelines.
+
+- **Testing Guide**: See [TESTING.md](TESTING.md) for detailed testing information
+- **Run Tests**: `go test ./...`
+- **Coverage Report**: `go test -coverprofile=coverage.out ./...`
+- **Benchmarks**: `go test -bench=. ./...`
+
+The test suite validates:
+- ✅ OpenAI API compatibility
+- ✅ Authentication flows  
+- ✅ Error handling
+- ✅ Performance benchmarks
+- ✅ Security compliance
 
 ```bash
 make logout

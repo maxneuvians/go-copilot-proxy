@@ -1,5 +1,10 @@
 package pkg
 
+// FinishReason constants for OpenAI API compatibility.
+const (
+	FinishReasonStop = "stop"
+)
+
 type AuthenticationRequest struct {
 	ClientID   string `json:"client_id"`
 	DeviceCode string `json:"device_code"`
@@ -14,10 +19,10 @@ type AuthenticationResponse struct {
 }
 
 type Choice struct {
-	FinishReason string  `json:"finish_reason,omitempty"`
-	Index        int64   `json:"index,omitempty"`
-	Message      Message `json:"message,omitempty"`
-	Delta        Message `json:"delta,omitempty"`
+	FinishReason string   `json:"finish_reason,omitempty"`
+	Index        int64    `json:"index,omitempty"`
+	Message      *Message `json:"message,omitempty"`
+	Delta        *Message `json:"delta,omitempty"`
 }
 
 type CompletionRequest struct {
@@ -33,6 +38,8 @@ type CompletionResponse struct {
 	Choices []Choice `json:"choices"`
 	Created int64    `json:"created,omitempty"`
 	ID      string   `json:"id"`
+	Object  string   `json:"object"`
+	Model   string   `json:"model,omitempty"`
 	Usage   Usage    `json:"usage,omitempty"`
 }
 

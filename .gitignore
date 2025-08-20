@@ -26,3 +26,27 @@ go.work
 node_modules/
 **/node_modules/
 **/node_modules
+
+# UI build artifacts
+ui/dist/
+proxy-binary
+
+# Test artifacts
+coverage.out
+coverage.html
+go-copilot-proxy
+
+# Temporary files
+*.tmp
+*.temp
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Token file
+token.txt

@@ -1,0 +1,155 @@
+run:
+  timeout: 3m
+  go: "1.21"
+
+linters:
+  enable:
+    - asciicheck
+    - bodyclose
+    - cyclop
+    - dupl
+    - durationcheck
+    - errcheck
+    - errorlint
+    - exhaustive
+    - forcetypeassert
+    - gci
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - gofmt
+    - goheader
+    - goimports
+    - gomodguard
+    - goprintffuncname
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - lll
+    - makezero
+    - misspell
+    - nakedret
+    - nilerr
+    - nilnil
+    - noctx
+    - nolintlint
+    - prealloc
+    - predeclared
+    - revive
+    - staticcheck
+    - stylecheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - wastedassign
+    - whitespace
+
+linters-settings:
+  gocyclo:
+    min-complexity: 20
+  
+  gocognit:
+    min-complexity: 30
+  
+  cyclop:
+    max-complexity: 20
+  
+  lll:
+    line-length: 140
+  
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+  
+  misspell:
+    locale: US
+  
+  gofumpt:
+    extra-rules: true
+  
+  gosec:
+    excludes:
+      - G101 # Potential hardcoded credentials
+      - G304 # File path provided as taint input
+  
+  revive:
+    rules:
+      - name: exported
+        arguments: ["checkPrivateReceivers", "sayRepetitiveInsteadOfStutters"]
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files
+    - path: _test\.go
+      linters:
+        - dupl
+        - gosec
+        - lll
+        - gocognit
+        - gocyclo
+        - cyclop
+        - errcheck
+    
+    # Exclude known linter issues
+    - text: "weak cryptographic primitive"
+      linters:
+        - gosec
+    
+    # Exclude shadow declarations in short variable declarations
+    - text: "declaration of \"(err|ctx)\""
+      linters:
+        - govet
+    
+    # Exclude typecheck false positives with fiber imports
+    - text: "undefined: fiber"
+      linters:
+        - typecheck
+    
+    # Allow error return value not checked in test files for JSON encoding
+    - path: _test\.go
+      text: "Error return value.*is not checked"
+      linters:
+        - errcheck
+    
+    # Allow error return value not checked for Listen calls in main  
+    - text: "Error return value of.*Listen.*is not checked"
+      linters:
+        - errcheck
+        
+    # Allow error return value not checked for callback calls
+    - text: "Error return value.*callback.*is not checked"
+      linters:
+        - errcheck
+    
+    # Allow godot issues for test comments
+    - path: _test\.go
+      text: "Comment should end in a period"
+      linters:
+        - godot
+        
+    # Allow style issues for now to focus on functionality
+    - text: "should not use.*Go names"
+      linters:
+        - stylecheck
+        
+    # Allow line length issues for now  
+    - text: "line is.*characters long"
+      linters:
+        - lll
+        
+    # Allow noctx issues for now
+    - text: "should rewrite.*NewRequestWithContext"
+      linters:
+        - noctx
+        
+    # Allow whitespace issues
+    - text: "unnecessary leading newline"
+      linters:
+        - whitespace
+  
+  max-issues-per-linter: 0
+  max-same-issues: 0
