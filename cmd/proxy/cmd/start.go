@@ -222,7 +222,7 @@ var startCmd = &cobra.Command{
 							f.Flush()
 						}
 
-						// Send the finish reason chunk separately (with empty content)
+						// Send the finish reason chunk separately (with no delta)
 						finishChunk := pkg.CompletionResponse{
 							ID:      completionID,
 							Object:  "chat.completion.chunk",
@@ -230,11 +230,8 @@ var startCmd = &cobra.Command{
 							Model:   model,
 							Choices: []pkg.Choice{
 								{
-									Index: choice.Index,
-									Delta: &pkg.Message{
-										Role:    "",
-										Content: "",
-									},
+									Index:        choice.Index,
+									Delta:        nil, // No delta for finish chunk
 									FinishReason: choice.FinishReason,
 								},
 							},
