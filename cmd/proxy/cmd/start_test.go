@@ -712,7 +712,7 @@ func TestChatEndpointStreamingRequest(t *testing.T) {
 		if lastChunk.Choices[0].FinishReason != pkg.FinishReasonStop {
 			t.Errorf("Last chunk should have finish_reason 'stop', got '%s'", lastChunk.Choices[0].FinishReason)
 		}
-		
+
 		// Verify that finish chunks have no delta or proper delta structure
 		if lastChunk.Choices[0].FinishReason != "" {
 			if lastChunk.Choices[0].Delta != nil {
@@ -1022,10 +1022,10 @@ func TestStreamingFinishChunkDeltaHandling(t *testing.T) {
 
 	// This simulates the problem case that was causing validation errors
 	// The fix should handle this by splitting into separate chunks
-	if response.Choices[0].FinishReason != "" && 
-	   response.Choices[0].Delta != nil && 
-	   response.Choices[0].Delta.Content != "" {
-		
+	if response.Choices[0].FinishReason != "" &&
+		response.Choices[0].Delta != nil &&
+		response.Choices[0].Delta.Content != "" {
+
 		// Content chunk should have no finish_reason
 		contentChunk := pkg.CompletionResponse{
 			Choices: []pkg.Choice{
@@ -1039,7 +1039,7 @@ func TestStreamingFinishChunkDeltaHandling(t *testing.T) {
 				},
 			},
 		}
-		
+
 		// Finish chunk should have no delta (this is the key fix)
 		finishChunk := pkg.CompletionResponse{
 			Choices: []pkg.Choice{
@@ -1050,45 +1050,45 @@ func TestStreamingFinishChunkDeltaHandling(t *testing.T) {
 				},
 			},
 		}
-		
+
 		// Validate content chunk structure
 		contentBytes, err := json.Marshal(contentChunk)
 		if err != nil {
 			t.Fatalf("Failed to marshal content chunk: %v", err)
 		}
-		
+
 		var parsedContent pkg.CompletionResponse
 		err = json.Unmarshal(contentBytes, &parsedContent)
 		if err != nil {
 			t.Fatalf("Failed to unmarshal content chunk: %v", err)
 		}
-		
+
 		if parsedContent.Choices[0].Delta == nil {
 			t.Error("Content chunk should have delta field")
 		}
 		if parsedContent.Choices[0].FinishReason != "" {
 			t.Error("Content chunk should not have finish_reason")
 		}
-		
+
 		// Validate finish chunk structure (the critical test)
 		finishBytes, err := json.Marshal(finishChunk)
 		if err != nil {
 			t.Fatalf("Failed to marshal finish chunk: %v", err)
 		}
-		
+
 		var parsedFinish pkg.CompletionResponse
 		err = json.Unmarshal(finishBytes, &parsedFinish)
 		if err != nil {
 			t.Fatalf("Failed to unmarshal finish chunk: %v", err)
 		}
-		
+
 		if parsedFinish.Choices[0].Delta != nil {
 			t.Error("Finish chunk should not have delta field - this was causing the role validation error")
 		}
 		if parsedFinish.Choices[0].FinishReason != pkg.FinishReasonStop {
 			t.Errorf("Finish chunk should have finish_reason 'stop', got '%s'", parsedFinish.Choices[0].FinishReason)
 		}
-		
+
 		// Verify the JSON doesn't contain empty role field
 		jsonStr := string(finishBytes)
 		if strings.Contains(jsonStr, `"role":""`) {
