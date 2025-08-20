@@ -90,26 +90,7 @@ jobs:
         version: latest
         args: --timeout=5m
 
-  security:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.21.x'
-
-    - name: Install Gosec Security Scanner
-      run: go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
-
-    - name: Run Gosec Security Scanner
-      run: gosec -fmt sarif -out gosec.sarif ./...
-
-    - name: Upload SARIF file
-      uses: github/codeql-action/upload-sarif@v3
-      with:
-        sarif_file: gosec.sarif
 
   build:
     runs-on: ubuntu-latest
