@@ -103,7 +103,8 @@ var startCmd = &cobra.Command{
 			}
 		}() // Start the ticker
 
-		app.Post("/chat", func(c *fiber.Ctx) error {
+		// Define the chat handler function that can be reused
+		chatHandler := func(c *fiber.Ctx) error {
 			var payload Payload
 
 			// Log incoming request
@@ -183,7 +184,83 @@ var startCmd = &cobra.Command{
 
 					choice := completionResponse.Choices[0]
 
-					// Create streaming response chunk
+					// Handle the case where we get a chunk with both content and finish_reason
+					// This ensures we follow OpenAI's specification correctly
+					if choice.FinishReason != "" && choice.Delta != nil && choice.Delta.Content != "" {
+						// Send the content chunk first (without finish_reason)
+						contentChunk := pkg.CompletionResponse{
+							ID:      completionID,
+							Object:  "chat.completion.chunk",
+							Created: created,
+							Model:   model,
+							Choices: []pkg.Choice{
+								{
+									Index: choice.Index,
+									Delta: &pkg.Message{
+										Role:    choice.Delta.Role,
+										Content: choice.Delta.Content,
+									},
+									FinishReason: "", // No finish reason for content chunk
+								},
+							},
+						}
+
+						chunkBytes, err := json.Marshal(contentChunk)
+						if err != nil {
+							log.Error().Err(err).Msg("Failed to marshal content chunk")
+							return err
+						}
+
+						_, writeErr := fmt.Fprintf(c.Response().BodyWriter(), "data: %s\n\n", string(chunkBytes))
+						if writeErr != nil {
+							log.Error().Err(writeErr).Msg("Failed to write content chunk")
+							return writeErr
+						}
+
+						// Flush the response
+						if f, ok := c.Response().BodyWriter().(interface{ Flush() }); ok {
+							f.Flush()
+						}
+
+						// Send the finish reason chunk separately (with empty content)
+						finishChunk := pkg.CompletionResponse{
+							ID:      completionID,
+							Object:  "chat.completion.chunk",
+							Created: created,
+							Model:   model,
+							Choices: []pkg.Choice{
+								{
+									Index: choice.Index,
+									Delta: &pkg.Message{
+										Role:    "",
+										Content: "",
+									},
+									FinishReason: choice.FinishReason,
+								},
+							},
+						}
+
+						finishBytes, err := json.Marshal(finishChunk)
+						if err != nil {
+							log.Error().Err(err).Msg("Failed to marshal finish chunk")
+							return err
+						}
+
+						_, writeErr = fmt.Fprintf(c.Response().BodyWriter(), "data: %s\n\n", string(finishBytes))
+						if writeErr != nil {
+							log.Error().Err(writeErr).Msg("Failed to write finish chunk")
+							return writeErr
+						}
+
+						// Flush the response
+						if f, ok := c.Response().BodyWriter().(interface{ Flush() }); ok {
+							f.Flush()
+						}
+
+						return nil
+					}
+
+					// Handle normal chunks (either content-only or finish-only)
 					streamChunk := pkg.CompletionResponse{
 						ID:      completionID,
 						Object:  "chat.completion.chunk",
@@ -332,7 +409,11 @@ var startCmd = &cobra.Command{
 				c.Set("Content-Type", "application/json")
 				return c.JSON(openAIResponse)
 			}
-		})
+		}
+
+		// Register the chat handler for both endpoints
+		app.Post("/chat", chatHandler)
+		app.Post("/v1/chat/completions", chatHandler)
 
 		app.Listen(":3000")
 	},

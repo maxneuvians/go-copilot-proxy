@@ -813,3 +813,182 @@ func TestChatEndpointStreamingFalse(t *testing.T) {
 		t.Error("Non-streaming response should not have delta field")
 	}
 }
+
+// Test /v1/chat/completions endpoint alias
+func TestV1ChatCompletionsEndpoint(t *testing.T) {
+	app := createTestApp()
+
+	// Add the /v1/chat/completions route to the test app
+	// Define the chat handler function that can be reused
+	chatHandler := func(c *fiber.Ctx) error {
+		var payload Payload
+
+		if err := c.BodyParser(&payload); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid request payload",
+			})
+		}
+
+		// Determine streaming mode
+		stream := false
+		if payload.Stream != nil {
+			stream = *payload.Stream
+		}
+
+		// Use defaults if not provided
+		model := Model
+		if payload.Model != nil {
+			model = *payload.Model
+		}
+
+		if stream {
+			// Set SSE headers for streaming
+			c.Set("Content-Type", "text/event-stream")
+			c.Set("Cache-Control", "no-cache")
+			c.Set("Connection", "keep-alive")
+			c.Set("Access-Control-Allow-Origin", "*")
+
+			// Mock streaming response
+			completionID := "chatcmpl-test123"
+			created := time.Now().Unix()
+
+			// Simulate streaming chunks
+			chunks := []string{"Hello", "! How", " can I", " help you", " today", "?"}
+
+			for i, chunk := range chunks {
+				streamChunk := pkg.CompletionResponse{
+					ID:      completionID,
+					Object:  "chat.completion.chunk",
+					Created: created,
+					Model:   model,
+					Choices: []pkg.Choice{
+						{
+							Index: 0,
+							Delta: &pkg.Message{
+								Role:    "assistant",
+								Content: chunk,
+							},
+							FinishReason: "",
+						},
+					},
+				}
+
+				// For the last chunk, set finish_reason but keep the content
+				if i == len(chunks)-1 {
+					streamChunk.Choices[0].FinishReason = pkg.FinishReasonStop
+				}
+
+				chunkBytes, _ := json.Marshal(streamChunk)
+				fmt.Fprintf(c.Response().BodyWriter(), "data: %s\n\n", string(chunkBytes))
+			}
+
+			// Send final [DONE] message
+			fmt.Fprintf(c.Response().BodyWriter(), "data: [DONE]\n\n")
+			return nil
+		} else {
+			// Non-streaming response (existing logic)
+			resp := "Hello! How can I help you today?"
+
+			// Create usage estimation
+			promptTokens := int64(len(fmt.Sprintf("%v", payload.Messages)) / 4)
+			completionTokens := int64(len(resp) / 4)
+			usage := pkg.Usage{
+				PromptTokens:     promptTokens,
+				CompletionTokens: completionTokens,
+				TotalTokens:      promptTokens + completionTokens,
+			}
+
+			// Create OpenAI-compatible response
+			openAIResponse := pkg.CompletionResponse{
+				ID:      "chatcmpl-test123",
+				Object:  "chat.completion",
+				Created: time.Now().Unix(),
+				Model:   model,
+				Choices: []pkg.Choice{
+					{
+						Index: 0,
+						Message: &pkg.Message{
+							Role:    "assistant",
+							Content: resp,
+						},
+						FinishReason: pkg.FinishReasonStop,
+					},
+				},
+				Usage: usage,
+			}
+
+			c.Set("Content-Type", "application/json")
+			return c.JSON(openAIResponse)
+		}
+	}
+
+	// Register the handler for both endpoints
+	app.Post("/v1/chat/completions", chatHandler)
+
+	// Create test request
+	payload := Payload{
+		Messages: []pkg.Message{
+			{Role: "user", Content: "Hello, how are you?"},
+		},
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("Failed to marshal payload: %v", err)
+	}
+
+	// Create HTTP request to /v1/chat/completions
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewBuffer(payloadBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	// Execute request
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("Failed to execute request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Check status code
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("Expected status 200, got %d. Body: %s", resp.StatusCode, string(body))
+	}
+
+	// Check content type
+	contentType := resp.Header.Get("Content-Type")
+	if !strings.Contains(contentType, "application/json") {
+		t.Errorf("Expected Content-Type to contain application/json, got %s", contentType)
+	}
+
+	// Parse response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read response body: %v", err)
+	}
+
+	var completionResp pkg.CompletionResponse
+	err = json.Unmarshal(body, &completionResp)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	// Validate OpenAI-compatible response structure (same as /chat endpoint)
+	if completionResp.ID == "" {
+		t.Error("Response ID should not be empty")
+	}
+	if !strings.HasPrefix(completionResp.ID, "chatcmpl-") {
+		t.Errorf("Expected ID to start with 'chatcmpl-', got %s", completionResp.ID)
+	}
+	if completionResp.Object != "chat.completion" {
+		t.Errorf("Expected object: chat.completion, got %s", completionResp.Object)
+	}
+	if len(completionResp.Choices) != 1 {
+		t.Errorf("Expected 1 choice, got %d", len(completionResp.Choices))
+	}
+	if completionResp.Choices[0].Message == nil {
+		t.Error("Choice should have message field for non-streaming")
+	}
+	if completionResp.Choices[0].Delta != nil {
+		t.Error("Choice should not have delta field for non-streaming")
+	}
+}
