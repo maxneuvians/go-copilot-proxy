@@ -49,6 +49,22 @@ Will result in OpenAI-compatible format:
 }
 ```
 
+## Development & Testing
+
+This project includes a comprehensive test suite with unit tests, integration tests, and automated CI/CD pipelines.
+
+- **Testing Guide**: See [TESTING.md](TESTING.md) for detailed testing information
+- **Run Tests**: `go test ./...`
+- **Coverage Report**: `go test -coverprofile=coverage.out ./...`
+- **Benchmarks**: `go test -bench=. ./...`
+
+The test suite validates:
+- ✅ OpenAI API compatibility
+- ✅ Authentication flows  
+- ✅ Error handling
+- ✅ Performance benchmarks
+- ✅ Security compliance
+
 ```bash
 make logout
 ```
